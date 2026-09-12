@@ -1,0 +1,32 @@
+name: verify
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Vercel deploys production from main. Branch protection requires this job to
+# pass before anything can be merged there, so this workflow is the gate that
+# stands between a bad commit and mail.singlekeyadvisory.com.
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify artifacts
+        run: node tools/verify.mjs
+
+      - name: Compare against what is live
+        # Informational. On a PR this shows exactly which files the merge will
+        # change on production. It must not fail the build: main is often
+        # legitimately ahead of live for a few seconds after a merge.
+        continue-on-error: true
+        run: node tools/check-drift.mjs
