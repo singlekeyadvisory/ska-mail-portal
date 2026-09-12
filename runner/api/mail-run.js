@@ -137,14 +137,14 @@ module.exports = async (req, res) => {
 
     // ---- load inboxes -----------------------------------------------------
     const inboxes = await sb('/rest/v1/inboxes?is_active=eq.true&select=*');
-    const PRIORITY = ['sales@', 'rishab@', 'mis@', 'support@', 'info@'];
-    inboxes.sort((a, b) => {
-      const ah = a.last_history_id ? 0 : 1, bh = b.last_history_id ? 0 : 1;
-      if (ah !== bh) return ah - bh;
-      const ai = PRIORITY.findIndex(p => a.email_address.startsWith(p));
-      const bi = PRIORITY.findIndex(p => b.email_address.startsWith(p));
-      return ai - bi;
-    });
+    // Whoever has gone longest without advancing their cursor goes FIRST.
+    // The old fixed PRIORITY list put info@ permanently last, so whenever an
+    // earlier mailbox was busy it collected nothing and raised no error --
+    // that is how info@ went three days dark while support@ ate every run.
+    // Staleness ordering makes starvation self-correcting: a mailbox that
+    // misses a cycle rises to the front of the next one.
+    const staleness = x => Date.parse(x.cursor_moved_at || x.last_synced_at || '') || 0;
+    inboxes.sort((a, b) => staleness(a) - staleness(b));
     const ownAddrs = new Set(inboxes.map(i => i.email_address.toLowerCase()));
 
     // ---- inbound ----------------------------------------------------------
@@ -225,14 +225,38 @@ module.exports = async (req, res) => {
       return { n, oldest, complete: seen === ids.length };
     };
 
+    // Remove ids already in the database BEFORE spending any Gmail calls.
+    // ingestIds downloads every message in full and only then discovers the row
+    // exists, so a replayed window used to cost one full Gmail fetch per message
+    // we already had. With a pinned cursor that window grew daily until a run
+    // could no longer reach the end of it -- support@ was spending 250s of API
+    // calls to surface a single new message. One batched lookup per 100 ids
+    // replaces all of that. If the lookup itself fails we keep the id and fetch
+    // it: wasting a call is acceptable, skipping mail is not.
+    const dropKnown = async ids => {
+      const uniq = [...new Set(ids)];
+      if (!uniq.length) return uniq;
+      const have = new Set();
+      for (let i = 0; i < uniq.length; i += 100) {
+        const chunk = uniq.slice(i, i + 100);
+        try {
+          const rows = await sb(`/rest/v1/messages?select=gmail_message_id&gmail_message_id=in.(${chunk.join(',')})`);
+          (rows || []).forEach(r => r.gmail_message_id && have.add(r.gmail_message_id));
+        } catch (_) { /* fall through: fetch it rather than risk skipping it */ }
+      }
+      return uniq.filter(x => !have.has(x));
+    };
+
     // ===== Pass 1: fresh mail for every mailbox ============================
-    for (const inbox of (skipInbound ? [] : inboxes)) {
+    const pass1 = skipInbound ? [] : inboxes;
+    for (let pi = 0; pi < pass1.length; pi++) {
+      const inbox = pass1[pi];
       if (left() < 20000) { report.push({ mailbox: inbox.email_address, note: 'skipped - out of time, next run' }); continue; }
       const summary = { mailbox: inbox.email_address, ingested: 0 };
       try {
         const tok = await gmailToken(inbox.email_address);
         const profile = await g(tok, '/profile');           // historyId snapshot BEFORE listing
-        let ids = [], haveCursor = !!inbox.last_history_id, seeded = false;
+        let ids = [], haveCursor = !!inbox.last_history_id;
 
         if (haveCursor) {
           let page = '', guard = 0;
@@ -276,30 +300,32 @@ module.exports = async (req, res) => {
             (l.messages || []).forEach(m => ids.push(m.id));
             if (!l.nextPageToken) break; page = l.nextPageToken;
           }
-          seeded = true;
         }
 
-        const r1 = await ingestIds(inbox, tok, ids, 22000);
+        // Drop what we already hold, then cap this mailbox to a fair share of
+        // the remaining budget (reserving ~60s for outbound and retention) so
+        // one busy mailbox can never starve the ones behind it.
+        ids = await dropKnown(ids);
+        const share = Math.max(25000, Math.floor((left() - 60000) / Math.max(1, pass1.length - pi)));
+        const r1 = await ingestIds(inbox, tok, ids, Math.max(22000, left() - share));
         summary.ingested = r1.n;
 
         const patch = { last_synced_at: new Date().toISOString(), sync_error: null };
-        if (seeded || !haveCursor) {
-          // Establish the incremental cursor NOW so all future new mail flows,
-          // and (if this is the very first sync) arm the backfill for older mail.
+        // ONE rule, both paths: advance the bookmark only when every id we set
+        // out to ingest was actually consumed. profile.historyId was snapshotted
+        // BEFORE listing, so anything arriving mid-run is still caught next time.
+        //
+        // The reseed path used to advance UNCONDITIONALLY. On 11 Sep info@ hit
+        // that branch with seconds of budget left, ingested 2 of ~90 messages,
+        // and still moved its bookmark to 'now' -- silently orphaning three days
+        // of mail with sync_error null and errors 0. Never advance past work you
+        // have not done; if this run falls short the next one simply replays,
+        // and dropKnown now makes that replay nearly free.
+        if (r1.complete) {
           patch.last_history_id = profile.historyId + '';
           if (!inbox.last_history_id && !inbox.backfill_done) {
             patch.backfill_before = r1.oldest || new Date().toISOString();
           }
-        } else if (r1.complete) {
-          // Advance the cursor. profile.historyId was snapshotted BEFORE listing,
-          // so anything that arrived mid-run is still picked up next time. Only
-          // safe when ingestion consumed the whole list -- otherwise the ids we
-          // ran out of budget for would be skipped forever.
-          // Without this the cursor stays pinned where it was first set: the
-          // replay window grows every day until it exceeds one run's 22s ingest
-          // budget, after which the newest mail is never reached and the mailbox
-          // goes quiet with no error at all.
-          patch.last_history_id = profile.historyId + '';
         }
         await sb(`/rest/v1/inboxes?id=eq.${inbox.id}`, { method: 'PATCH', headers: { prefer: 'return=minimal' }, body: JSON.stringify(patch) });
         // keep local copy current for pass 2
@@ -331,7 +357,12 @@ module.exports = async (req, res) => {
           (l.messages || []).forEach(m => ids.push(m.id));
           if (!l.nextPageToken) break; page = l.nextPageToken;
         }
-        if (!ids.length) {
+        // Only an EMPTY LISTING means the backfill is finished. Measure that
+        // before dropKnown, or a page of mail we already hold would look like
+        // the end of history and end the backfill early.
+        const listed = ids.length;
+        ids = await dropKnown(ids);
+        if (!listed) {
           await sb(`/rest/v1/inboxes?id=eq.${inbox.id}`, { method: 'PATCH', headers: { prefer: 'return=minimal' }, body: JSON.stringify({ backfill_done: true, backfill_before: null }) });
           rep.backfill = 'done';
         } else {
