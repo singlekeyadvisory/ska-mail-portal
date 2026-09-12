@@ -1,0 +1,61 @@
+{
+  "version": "5.4",
+  "files": {
+    "shell/index.html": {
+      "md5": "fc27ed26bdfda4fe33891c4c554955aa",
+      "bytes": 31687
+    },
+    "shell/app2.part": {
+      "md5": "3a4f5cb7f67d7992974694f117a7e320",
+      "bytes": 217454
+    },
+    "shell/sw.js": {
+      "md5": "d61908e683152b0e4797309bd6014d1d",
+      "bytes": 3332
+    },
+    "shell/manifest.webmanifest": {
+      "md5": "e45064553d933351c317c8a6d4f6ab3a",
+      "bytes": 660
+    },
+    "shell/icon-192.png": {
+      "md5": "74f823f3175a180d123acf93ed1a5d42",
+      "bytes": 4992
+    },
+    "shell/icon-512.png": {
+      "md5": "1d2246afd9841a96a84827d629324423",
+      "bytes": 14604
+    },
+    "shell/icon-maskable.png": {
+      "md5": "9b15b5ab4fd9912eb7fc38001ab7d5b6",
+      "bytes": 12476
+    },
+    "shell/apple-touch-icon.png": {
+      "md5": "3ed23ad4ba551ecfacdac9a743a5c448",
+      "bytes": 4061
+    },
+    "app/app1.part": {
+      "md5": "6cf5d3d023144b08682344ad2b436a04",
+      "bytes": 144645
+    },
+    "runner/api/mail-run.js": {
+      "md5": "65aade9d28a53bfc79a978bbb1715b43",
+      "bytes": 36732
+    },
+    "runner/api/admin.js": {
+      "md5": "2916fc1a763b996f9ee8ec6a68e07ed2",
+      "bytes": 11425
+    },
+    "runner/api/drive.js": {
+      "md5": "a3268ff64ce4679ce8a131efa9638cc9",
+      "bytes": 10790
+    },
+    "runner/index.html": {
+      "md5": "17a457152c84190660381dd5968db8fb",
+      "bytes": 15
+    },
+    "runner/vercel.json": {
+      "md5": "83b85c070678ffffe388494d9359ae26",
+      "bytes": 229
+    }
+  }
+}

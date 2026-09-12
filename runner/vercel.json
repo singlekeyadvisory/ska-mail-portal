@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/mail-run.js": { "maxDuration": 300 },
+    "api/admin.js": { "maxDuration": 300 },
+    "api/drive.js": { "maxDuration": 300 }
+  },
+  "crons": [{ "path": "/api/mail-run", "schedule": "*/10 * * * *" }]
+}

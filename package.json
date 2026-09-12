@@ -1,0 +1,11 @@
+{
+  "name": "ska-mail-portal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "node tools/verify.mjs",
+    "manifest": "node tools/manifest.mjs --write",
+    "manifest:check": "node tools/manifest.mjs",
+    "drift": "node tools/check-drift.mjs"
+  }
+}

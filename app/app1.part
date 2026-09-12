@@ -1,0 +1,1315 @@
+import{createClient}from'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const U='https://btfznkhnuytcfaduvjbm.supabase.co';
+const K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Znpua2hudXl0Y2ZhZHV2amJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNjUyOTYsImV4cCI6MjA5ODY0MTI5Nn0.iqsVKeQR6KhxUVS9mxXFFwRXNg-xNsByAD0UWt05q5s';
+const RUNNER='https://runner.singlekeyadvisory.com/api/mail-run';
+const ADMIN='https://runner.singlekeyadvisory.com/api/admin';
+const DRIVEAPI='https://runner.singlekeyadvisory.com/api/drive';
+const RECOV_URL=location.hash.includes('type=recovery')||new URLSearchParams(location.search).get('type')==='recovery';
+const hd=createClient(U,K,{db:{schema:'helpdesk'}}),pb=createClient(U,K);
+const el=document.getElementById('app');
+const LOGO=`<svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Single Key Advisory"><rect x="17" y="2" width="30" height="34" rx="2.5" fill="#1F2A63"></rect><rect x="20.5" y="5.5" width="23" height="27" rx="1" fill="#fff"></rect><rect x="24" y="21" width="4.5" height="8" fill="#1F2A63"></rect><rect x="30.5" y="17" width="4.5" height="12" fill="#F2960F"></rect><rect x="37" y="12" width="4.5" height="17" fill="#1F2A63"></rect><circle cx="32" cy="40" r="12.5" fill="#F2960F"></circle><circle cx="32" cy="40" r="7" fill="#fff"></circle><circle cx="32" cy="38.5" r="3.6" fill="#1F2A63"></circle><path d="M29.6 51.5 h4.8 v4 h-3 v2.2 h3 v2.6 l-2.4 2.2 -2.4 -2.2 Z" fill="#F2960F"></path></svg>`;
+const RLOGO='https://singlekeyadvisory.com/text_logo.svg';
+const authHead=sub=>`<div class="lgh"><img class="lg-logo" src="${RLOGO}" alt="Single Key Advisory" onerror="this.style.display='none'"><div class="lg-title">Mail</div><div class="s">${sub}</div></div>`;
+const E=s=>(s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const P=s=>E(s??'').split('\n').map(l=>`<p>${l||'&nbsp;'}</p>`).join('');
+// Numeric date/time, written the way the portal admin has chosen.
+// Before this, five places called toLocaleString() with no options, which uses
+// whatever locale the browser happens to be set to. On en-US that renders the
+// 8th of September as 9/8/2026 -- which anyone outside the US reads as the 9th
+// of August. The month-name formats elsewhere (08 Sep 2026) were never
+// ambiguous and are left alone.
+const _dp=n=>String(n).padStart(2,'0');
+const FD=v=>{if(!v)return'\u2014';const d=new Date(v);if(isNaN(d))return'\u2014';
+const D=_dp(d.getDate()),M=_dp(d.getMonth()+1),Y=d.getFullYear();
+return DFMT==='mdy'?M+'/'+D+'/'+Y:DFMT==='ymd'?Y+'-'+M+'-'+D:D+'/'+M+'/'+Y};
+const FT=v=>{const d=new Date(v);if(isNaN(d))return'';try{return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}catch(e){return _dp(d.getHours())+':'+_dp(d.getMinutes())}};
+const FDT=v=>{if(!v)return'\u2014';const d=new Date(v);if(isNaN(d))return'\u2014';return FD(v)+', '+FT(v)};
+const Ap=i=>{if(!i)return'—';const m=Math.floor((Date.now()-new Date(i))/6e4);
+if(m<0){const n=-m;return n<60?'in '+n+'m':n<1440?'in '+Math.floor(n/60)+'h':'in '+Math.floor(n/1440)+'d'}
+return m<1?'just now':m<60?m+'m ago':m<1440?Math.floor(m/60)+'h ago':Math.floor(m/1440)+'d ago'};
+const Ax=i=>{if(!i)return'';try{const d=new Date(i);if(isNaN(d))return'';return d.toLocaleString([],{weekday:'short',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return''}};
+const A=i=>{if(!i)return'—';const _x=Ax(i);if(!_x)return Ap(i);return '<span class="ago" title="'+_x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')+'">'+Ap(i)+'</span>'};
+const KB=b=>b>1048576?(b/1048576).toFixed(1)+' MB':b>1024?Math.round(b/1024)+' KB':(b??0)+' B';
+const PRI={1:['Urgent','o'],2:['High','w'],3:['Normal',''],4:['Low','d']};
+const priPill=p=>{const[t,c]=PRI[p??3]??PRI[3];return (p??3)==3?'':`<span class="pill ${c}">${t}</span>`};
+const PSEL=`<option value="3">Normal</option><option value="1">Urgent</option><option value="2">High</option>`;
+const toLoc=d=>{const x=new Date(d),p=n=>String(n).padStart(2,'0');return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())+'T'+p(x.getHours())+':'+p(x.getMinutes())};
+const toDate=d=>{const x=new Date(d),p=n=>String(n).padStart(2,'0');return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())};
+const dISO=v=>v?new Date(v+'T23:59:59').toISOString():null;
+const LBLMAP={SPAM:['spam','o'],CATEGORY_PROMOTIONS:['promotions','w'],CATEGORY_SOCIAL:['social','i'],
+CATEGORY_UPDATES:['updates','i'],CATEGORY_FORUMS:['forums','i'],IMPORTANT:0,INBOX:0,SENT:0,UNREAD:0,STARRED:0,CATEGORY_PERSONAL:0};
+const LBL=ls=>(Array.isArray(ls)?ls:[]).map(l=>{const m=LBLMAP[l];
+return m===0?'':m?`<span class="pill ${m[1]}">${m[0]}</span>`:''}).join('');
+const pillColor=hex=>{const c=String(hex||'').replace('#','');if(!/^[0-9a-f]{6}$/i.test(c))return null;const r=parseInt(c.slice(0,2),16),g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);return{bg:'#'+c,fg:(0.299*r+0.587*g+0.114*b)>150?'#1f2937':'#ffffff'}};
+let CLICOL='';
+const clientPill=cn=>{const c=pillColor(CLICOL);return c?`<span class="pill" style="background:${c.bg};color:${c.fg};border-color:${c.bg}">${E(cn)}</span>`:`<span class="pill cli">${E(cn)}</span>`};
+const tagPill=name=>{const t=(typeof TAGS!=='undefined'?TAGS:[]).find(g=>g.name===name);if(t&&t.behavior==='client')return clientPill(name);const c=t&&pillColor(t.color);return c?`<span class="pill" style="background:${c.bg};color:${c.fg};border-color:${c.bg}">${E(name)}</span>`:`<span class="pill i">${E(name)}</span>`};
+function _modal(opt){return new Promise(res=>{
+const o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true">${opt.title?`<div class="mdl-t">${E(opt.title)}</div>`:''}${opt.message?`<div class="mdl-m">${E(opt.message).replace(/\n/g,'<br>')}</div>`:''}${opt.input?`<input class="mdl-in" type="text" spellcheck="false">`:''}<div class="mdl-a"><button class="gh mdl-x">${E(opt.cancelText||'Cancel')}</button><button class="pri mdl-ok${opt.danger?' mdl-danger':''}">${E(opt.okText||'OK')}</button></div></div>`;
+document.body.appendChild(o);
+const inp=o.querySelector('.mdl-in');if(inp){inp.value=opt.value||'';setTimeout(()=>{inp.focus();inp.select()},20)}
+const shut=v=>{document.removeEventListener('keydown',key);o.remove();res(v)};
+const ok=()=>shut(opt.input?inp.value:true);const cancel=()=>shut(opt.input?null:false);
+o.querySelector('.mdl-ok').onclick=ok;o.querySelector('.mdl-x').onclick=cancel;
+o.addEventListener('mousedown',e=>{if(e.target===o)cancel()});
+const key=e=>{if(e.key==='Escape'){e.preventDefault();cancel()}else if(e.key==='Enter'){e.preventDefault();ok()}};
+document.addEventListener('keydown',key);
+if(!inp)setTimeout(()=>{const k=o.querySelector('.mdl-ok');if(k)k.focus()},20);
+})}
+function conf(message,opt){return _modal(Object.assign({title:'Please confirm',message,okText:'Confirm'},opt||{}))}
+function ask(message,value,opt){return _modal(Object.assign({message,input:true,value:value||'',okText:'OK'},opt||{}))}
+// Block-sender dialog: choose scope (everyone / team-only) + type-to-confirm. Resolves {scope:'all'|'team'} or null.
+function blockScopePrompt(email){return new Promise(res=>{const o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true"><div class="mdl-t">🚫 Block sender</div>
+<div class="mdl-m">Block <b>${E(email)}</b>. Choose who this applies to. Gmail is never touched, and unblocking later re-fetches their last 365 days.</div>
+<label class="rw" style="gap:8px;align-items:flex-start;margin-bottom:8px;padding:10px 12px;border:1px solid var(--c-border);border-radius:9px;cursor:pointer"><input type="radio" name="bscope" value="all" checked style="margin-top:3px"> <span><b style="color:var(--c-text)">Everyone (workspace-wide)</b><br><span class="mu">Hidden from everyone, including admins. Their un-ticketed mail is deleted now; future mail is dropped on arrival.</span></span></label>
+<label class="rw" style="gap:8px;align-items:flex-start;margin-bottom:14px;padding:10px 12px;border:1px solid var(--c-border);border-radius:9px;cursor:pointer"><input type="radio" name="bscope" value="team" style="margin-top:3px"> <span><b style="color:var(--c-text)">Team members only</b><br><span class="mu">Hidden from members; admins and granted people still see them. Existing mail is kept.</span></span></label>
+<label class="mu" style="display:block;margin-bottom:6px">Type the address to confirm</label>
+<input class="mdl-in" id="bsc_c" type="text" placeholder="${E(email)}" spellcheck="false" autocomplete="off">
+<div class="mu" id="bsc_w" style="margin:0 0 12px;color:var(--c-over-tx)" hidden>That does not match. Check the address.</div>
+<div class="mdl-a"><button class="gh mdl-x">Cancel</button><button class="pri mdl-danger mdl-ok">Block</button></div></div>`;
+document.body.appendChild(o);
+const ci=o.querySelector('#bsc_c'),w=o.querySelector('#bsc_w');setTimeout(()=>ci.focus(),20);
+const shut=v=>{document.removeEventListener('keydown',key);o.remove();res(v)};
+const ok=()=>{if((ci.value||'').trim().toLowerCase()!==email.toLowerCase()){w.hidden=false;ci.focus();return}shut({scope:(o.querySelector('input[name=bscope]:checked')||{}).value||'all'})};
+o.querySelector('.mdl-ok').onclick=ok;o.querySelector('.mdl-x').onclick=()=>shut(null);
+o.addEventListener('mousedown',e=>{if(e.target===o)shut(null)});
+const key=e=>{if(e.key==='Escape'){e.preventDefault();shut(null)}else if(e.key==='Enter'){e.preventDefault();ok()}};
+document.addEventListener('keydown',key)})}
+// Rich create-a-tag dialog: name + behaviour + colour (colour hidden for client). Resolves {name,behavior,color,client_name} or null.
+function tagCreatePrompt(email){return new Promise(res=>{const o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true"><div class="mdl-t">Create a tag</div>
+<div class="mdl-m">New tag to create and add to ${E(email)}:</div>
+<input class="mdl-in" id="tc_n" type="text" placeholder="Tag name (e.g. GST, Income tax)" spellcheck="false" autocomplete="off">
+<label class="mu" style="display:block;margin-bottom:6px">Behaviour</label>
+<select id="tc_b" style="width:100%;box-sizing:border-box;margin-bottom:16px"><option value="label">Label — a coloured chip in the Inbox</option><option value="ignore">Ignore — hide this sender from the Inbox</option><option value="block">Block (workspace-wide) — hide from everyone</option><option value="block_team">Block (team-only) — hide from members</option><option value="client">Client — link this address to a client</option></select>
+<label class="rw" id="tc_cl" style="align-items:center;gap:10px;margin-bottom:16px;color:var(--c-muted)">Pill colour <input type="color" id="tc_col" value="#64748b" style="width:46px;height:28px;padding:0;border:none;border-radius:6px;background:none;cursor:pointer"></label>
+<input class="mdl-in" id="tc_c" type="text" placeholder="Client name (optional)" hidden autocomplete="off">
+<div class="mu" id="tc_w" style="margin-bottom:14px;color:var(--c-warn-tx)" hidden></div>
+<div class="mdl-a"><button class="gh mdl-x">Cancel</button><button class="pri mdl-ok">Create &amp; add</button></div></div>`;
+document.body.appendChild(o);
+const nm=o.querySelector('#tc_n'),bh=o.querySelector('#tc_b'),col=o.querySelector('#tc_col'),cl=o.querySelector('#tc_cl'),cn=o.querySelector('#tc_c'),w=o.querySelector('#tc_w');
+setTimeout(()=>{nm.focus()},20);
+const sync=()=>{const b=bh.value;cl.style.display=b==='client'?'none':'';cn.hidden=b!=='client';w.hidden=!(b==='block'||b==='block_team');w.textContent=b==='block'?'Applying this blocks the sender for everyone and removes their un-ticketed mail on the next run.':b==='block_team'?'Applying this hides the sender from members; admins still see them.':''};
+bh.onchange=sync;sync();
+const shut=v=>{document.removeEventListener('keydown',key);o.remove();res(v)};
+const ok=()=>{const n=(nm.value||'').trim();if(!n){nm.focus();return}const b=bh.value;shut({name:n,behavior:b,color:b==='client'?null:col.value,client_name:b==='client'?((cn.value||'').trim()||null):null})};
+o.querySelector('.mdl-ok').onclick=ok;o.querySelector('.mdl-x').onclick=()=>shut(null);
+o.addEventListener('mousedown',e=>{if(e.target===o)shut(null)});
+const key=e=>{if(e.key==='Escape'){e.preventDefault();shut(null)}else if(e.key==='Enter'&&document.activeElement!==bh){e.preventDefault();ok()}};
+document.addEventListener('keydown',key)})}
+// "Only show to" picker: choose viewers (+ all-admins). Resolves {viewers,allow_admins}, 'clear', or null.
+function onlyShowToPrompt(email,cur,curAdmins,isSet){return new Promise(res=>{const o=document.createElement('div');o.className='mdl';const curSet=new Set(cur||[]);
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true" style="max-height:82vh;overflow:auto"><div class="mdl-t">🔒 Only show to…</div>
+<div class="mdl-m">Pick who can see mail from <b>${E(email)}</b>. Everyone else won’t see it anywhere — it moves to the chosen people’s <b>My mails</b> tab. This also clears any Block/Ignore on this sender.</div>
+<label class="rw" style="gap:8px;align-items:center;margin-bottom:8px;padding:9px 11px;border:1px solid var(--c-border);border-radius:8px;cursor:pointer"><input type="checkbox" id="ost_adm" ${curAdmins?'checked':''}> <span><b style="color:var(--c-text)">All admins</b> <span class="mu">— every workspace admin can see it</span></span></label>
+<div class="prefh" style="margin:10px 0 6px">Team members</div>
+<div style="max-height:230px;overflow:auto;border:1px solid var(--c-border);border-radius:8px;padding:6px">${ppl.map(p=>`<label class="rw" style="gap:8px;align-items:center;padding:5px 7px;cursor:pointer"><input type="checkbox" class="ost_p" value="${E(p.id)}" ${curSet.has(p.id)?'checked':''}> ${E(p.n)}</label>`).join('')||'<span class="mu">No members.</span>'}</div>
+<div class="mdl-a" style="margin-top:14px">${isSet?`<button class="gh mdl-rm" style="margin-right:auto;color:var(--c-warn-tx)">Remove restriction</button>`:''}<button class="gh mdl-x">Cancel</button><button class="pri mdl-ok">Save</button></div></div>`;
+document.body.appendChild(o);
+const shut=v=>{document.removeEventListener('keydown',key);o.remove();res(v)};
+o.querySelector('.mdl-ok').onclick=()=>{const viewers=[...o.querySelectorAll('.ost_p:checked')].map(x=>x.value);const adm=o.querySelector('#ost_adm').checked;if(!viewers.length&&!adm){toast('Pick at least one person, or All admins',true);return}shut({viewers,allow_admins:adm})};
+o.querySelector('.mdl-x').onclick=()=>shut(null);
+const rm=o.querySelector('.mdl-rm');if(rm)rm.onclick=()=>shut('clear');
+o.addEventListener('mousedown',e=>{if(e.target===o)shut(null)});
+const key=e=>{if(e.key==='Escape'){e.preventDefault();shut(null)}};
+document.addEventListener('keydown',key)})}
+function tagShowToPrompt(tagName,cur,curAdmins,isSet,connected){return new Promise(res=>{const o=document.createElement('div');o.className='mdl';const curSet=new Set(cur||[]);
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true" style="max-height:82vh;overflow:auto"><div class="mdl-t">\uD83D\uDD12 Only show to \u2014 tag \u201c${E(tagName)}\u201d</div>
+<div class="mdl-m">Pick who can see mail from <b>every address carrying this tag</b>. Everyone else won\u2019t see it anywhere \u2014 it moves to the chosen people\u2019s <b>My mails</b> tab. You can still change any single address afterwards in the contacts list below.</div>
+<label class="rw" style="gap:8px;align-items:center;margin-bottom:8px;padding:9px 11px;border:1px solid var(--c-border);border-radius:8px;cursor:pointer"><input type="checkbox" id="tst_adm" ${curAdmins?'checked':''}> <span><b style="color:var(--c-text)">All admins</b> <span class="mu">\u2014 every workspace admin can see it</span></span></label>
+<label class="rw" style="gap:8px;align-items:center;margin-bottom:8px;padding:9px 11px;border:1px solid var(--c-border);border-radius:8px;cursor:pointer"><input type="checkbox" id="tst_conn" ${connected?'checked':''}> <span><b style="color:var(--c-text)">Stay connected to the tag</b> <span class="mu">\u2014 addresses tagged later inherit this automatically. Leave off for a one-time apply.</span></span></label>
+<div class="prefh" style="margin:10px 0 6px">Team members</div>
+<div style="max-height:230px;overflow:auto;border:1px solid var(--c-border);border-radius:8px;padding:6px">${ppl.map(p=>`<label class="rw" style="gap:8px;align-items:center;padding:5px 7px;cursor:pointer"><input type="checkbox" class="tst_p" value="${E(p.id)}" ${curSet.has(p.id)?'checked':''}> ${E(p.n)}</label>`).join('')||'<span class="mu">No members.</span>'}</div>
+<div class="mdl-a" style="margin-top:14px">${isSet?`<button class="gh mdl-rm" style="margin-right:auto;color:var(--c-warn-tx)">Remove rule</button>`:''}<button class="gh mdl-x">Cancel</button><button class="pri mdl-ok">Apply to all tagged</button></div></div>`;
+document.body.appendChild(o);
+const shut=v=>{document.removeEventListener('keydown',key);o.remove();res(v)};
+o.querySelector('.mdl-ok').onclick=()=>{const viewers=[...o.querySelectorAll('.tst_p:checked')].map(x=>x.value);const adm=o.querySelector('#tst_adm').checked;const cn=o.querySelector('#tst_conn').checked;if(!viewers.length&&!adm){toast('Pick at least one person, or All admins',true);return}shut({viewers,allow_admins:adm,connected:cn})};
+o.querySelector('.mdl-x').onclick=()=>shut(null);
+const rm=o.querySelector('.mdl-rm');if(rm)rm.onclick=()=>shut('clear');
+o.addEventListener('mousedown',e=>{if(e.target===o)shut(null)});
+const key=e=>{if(e.key==='Escape'){e.preventDefault();shut(null)}};
+document.addEventListener('keydown',key)})}
+// Inline info icon \u2014 same look as the collapsed page-title notes. Drop beside any heading.
+const iInfo=(html)=>`<span class="ib" tabindex="0" title="Show info">i<span class="ibx">${html}</span></span>`;
+// Date-picker dialog (calendar), matches the custom modal styling. Resolves to 'YYYY-MM-DD' or null.
+function askDate(opt){opt=opt||{};return new Promise(res=>{const o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true">${opt.title?`<div class="mdl-t">${E(opt.title)}${opt.info?iInfo(opt.info):''}</div>`:''}${opt.message?`<div class="mdl-m">${E(opt.message)}</div>`:''}<input class="mdl-in" type="date"${opt.min?` min="${opt.min}"`:''}${opt.max?` max="${opt.max}"`:''} value="${opt.value||''}"><div class="mdl-a"><button class="gh mdl-x">${E(opt.cancelText||'Cancel')}</button><button class="pri mdl-ok">${E(opt.okText||'OK')}</button></div></div>`;
+document.body.appendChild(o);const inp=o.querySelector('.mdl-in');setTimeout(()=>{inp.focus();if(inp.showPicker)try{inp.showPicker()}catch(e){}},30);
+const shut=v=>{document.removeEventListener('keydown',key);o.remove();res(v)};
+const ok=()=>{const val=inp.value;if(!val){inp.style.outline='2px solid #c0392b';return}if(opt.min&&val<opt.min){toast('That date has already passed — pick a future date',true);return}if(opt.max&&val>opt.max){toast('That is past the latest allowed date ('+opt.max+')',true);return}shut(val)};
+const cancel=()=>shut(null);o.querySelector('.mdl-ok').onclick=ok;o.querySelector('.mdl-x').onclick=cancel;o.addEventListener('mousedown',e=>{if(e.target===o)cancel()});
+const key=e=>{if(e.key==='Escape'){e.preventDefault();cancel()}else if(e.key==='Enter'){e.preventDefault();ok()}};document.addEventListener('keydown',key)})}
+function pwPrompt(){return new Promise(res=>{const o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true"><div class="mdl-t">Change your password</div>
+<div class="mdl-m">Enter your current password first, then choose a new one — at least 8 characters.</div>
+<input class="mdl-in" id="pw0" type="password" placeholder="Current password" autocomplete="current-password" style="margin-bottom:8px">
+<input class="mdl-in" id="pw1" type="password" placeholder="New password" autocomplete="new-password" disabled style="margin-bottom:8px;opacity:.5">
+<input class="mdl-in" id="pw2" type="password" placeholder="Repeat new password" autocomplete="new-password" disabled style="opacity:.5">
+<div class="mu" id="pwm" style="margin-top:6px;min-height:1.1em"></div>
+<div class="mdl-a"><button class="gh mdl-x">Cancel</button><button class="pri mdl-ok">Update password</button></div></div>`;
+document.body.appendChild(o);const c=o.querySelector('#pw0'),a=o.querySelector('#pw1'),b=o.querySelector('#pw2'),msg=o.querySelector('#pwm');
+setTimeout(()=>c.focus(),20);
+const gate=()=>{const on=c.value.length>0;[a,b].forEach(x=>{x.disabled=!on;x.style.opacity=on?'1':'.5'})};c.oninput=gate;
+const shut=v=>{document.removeEventListener('keydown',key);o.remove();res(v)};
+const ok=()=>{if(!c.value){msg.textContent='Enter your current password first.';return}if(a.value.length<8){msg.textContent='New password must be at least 8 characters.';return}if(a.value!==b.value){msg.textContent='The two new entries do not match.';return}if(a.value===c.value){msg.textContent='New password must differ from the current one.';return}shut({cur:c.value,next:a.value})};
+const cancel=()=>shut(null);
+o.querySelector('.mdl-ok').onclick=ok;o.querySelector('.mdl-x').onclick=cancel;o.addEventListener('mousedown',e=>{if(e.target===o)cancel()});
+const key=e=>{if(e.key==='Escape'){e.preventDefault();cancel()}else if(e.key==='Enter'){e.preventDefault();ok()}};document.addEventListener('keydown',key)})}
+function unamePrompt(cur){return new Promise(res=>{const o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true"><div class="mdl-t">Change username</div>
+<div class="mdl-m">Choose a new username — 3–20 lowercase letters, numbers or dots. This is what you type to sign in.</div>
+<input class="mdl-in" id="un1" type="text" spellcheck="false" autocomplete="username" value="${E(cur||'')}">
+<div class="mu" id="unm" style="margin-top:6px;min-height:1.1em"></div>
+<div class="mdl-a"><button class="gh mdl-x">Cancel</button><button class="pri mdl-ok" disabled>Save username</button></div></div>`;
+document.body.appendChild(o);const inp=o.querySelector('#un1'),msg=o.querySelector('#unm'),okb=o.querySelector('.mdl-ok');
+setTimeout(()=>{inp.focus();inp.select()},20);
+let deb,okVal=null;
+const setState=(text,cls,val)=>{msg.textContent=text;msg.style.color=cls==='ok'?'var(--c-good,#16a34a)':cls==='bad'?'var(--c-bad,#dc2626)':'';okVal=val;okb.disabled=!val};
+const check=()=>{const v=inp.value.trim().toLowerCase();
+if(v===(cur||'')){setState('That is your current username.','',null);return}
+if(!/^[a-z0-9._]{3,20}$/.test(v)){setState('3–20 lowercase letters, numbers or dots.','bad',null);return}
+setState('Checking…','',null);
+clearTimeout(deb);deb=setTimeout(async()=>{const{data:ok}=await hd.rpc('username_available',{p_username:v});
+if(inp.value.trim().toLowerCase()!==v)return;
+ok?setState('✓ Available','ok',v):setState('✗ Taken — try another','bad',null)},300)};
+inp.oninput=check;
+const shut=r=>{document.removeEventListener('keydown',key);o.remove();res(r)};
+const ok=()=>{if(okVal)shut(okVal)};
+okb.onclick=ok;o.querySelector('.mdl-x').onclick=()=>shut(null);o.addEventListener('mousedown',e=>{if(e.target===o)shut(null)});
+const key=e=>{if(e.key==='Escape'){e.preventDefault();shut(null)}else if(e.key==='Enter'){e.preventDefault();ok()}};document.addEventListener('keydown',key)})}
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector('script[data-src="'+src+'"]'))return res();const el=document.createElement('script');el.src=src;el.dataset.src=src;el.onload=()=>res();el.onerror=()=>rej(new Error('Failed to load '+src));document.head.appendChild(el)})}
+function chooseTicketAction(nm,count,people){return new Promise(res=>{const o=document.createElement('div');o.className='mdl';
+const body=count>0?(`<div class="mdl-m">Choose what happens to these tickets when the account is reset.</div>`+
+`<label class="mu" style="display:block;margin-bottom:10px">What should happen<select id="rtact" style="width:100%;margin-top:4px"><option value="reassign">Reassign to another member</option><option value="inbox">Send back to Inbox to be re-sorted</option><option value="delete">Delete them</option><option value="keep">Keep them as they are on this account</option></select></label>`+
+`<label class="mu" id="rttow" style="display:block;margin-bottom:16px">Reassign to<select id="rtto" style="width:100%;margin-top:4px">${people.map(pp=>`<option value="${pp.id}">${E(pp.n)}</option>`).join('')}</select></label>`):
+`<div class="mdl-m" style="margin-bottom:16px">No tickets are currently assigned to this member, so there is nothing to hand off. The reset will continue.</div>`;
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true"><div class="mdl-t">${count>0?E(nm)+' has '+count+' active ticket'+(count===1?'':'s'):'No active tickets for '+E(nm)}</div>`+body+
+`<div class="mdl-a"><button class="gh" id="rtx">Cancel</button><button class="pri" id="rtok">${count>0?'Apply':'Continue'}</button></div></div>`;
+document.body.appendChild(o);const act=o.querySelector('#rtact'),tow=o.querySelector('#rttow'),to=o.querySelector('#rtto');
+if(act){const upd=()=>{tow.style.display=act.value==='reassign'?'':'none'};upd();act.onchange=upd}
+const shut=v=>{o.remove();res(v)};o.querySelector('#rtok').onclick=()=>shut(count>0?{action:act.value,target:act.value==='reassign'?(to&&to.value||null):null}:{action:'keep',target:null});
+o.querySelector('#rtx').onclick=()=>shut(null);o.addEventListener('mousedown',e=>{if(e.target===o)shut(null)})})}
+function chooseMailboxAccess(nm,boxes,pre){return new Promise(res=>{const o=document.createElement('div');o.className='mdl';
+const _pre=new Set(pre||[]);
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true" style="max-width:520px"><div class="mdl-t">\uD83D\uDCEC Mailbox access for ${E(nm)}</div><div class="mdl-m">A reset clears their mailbox list. Choose what they should see and send from afterwards \u2014 nothing is granted unless you pick it here.</div><label style="display:flex;gap:9px;align-items:flex-start;flex-wrap:nowrap;cursor:pointer;margin:12px 0 6px"><input type="radio" name="mbmode" value="pick" checked style="flex:0 0 auto;margin:3px 0 0"><span style="min-width:0"><b>Only the mailboxes I tick</b><div class="mu">Recommended \u2014 they see nothing else.</div></span></label><div id="mba_l" style="display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto;border:1px solid var(--c-border);border-radius:9px;padding:9px 11px;margin:0 0 12px">${boxes.length?boxes.map(b=>`<label style="display:flex;gap:9px;align-items:flex-start;flex-wrap:nowrap;cursor:pointer"><input type="checkbox" class="mba_c" value="${E(b.id)}"${_pre.has(b.id)?' checked':''} style="flex:0 0 auto;margin:3px 0 0"><span style="min-width:0"><b style="font-weight:600">${E(b.email_address)}</b>${b.label?`<div class="mu">${E(b.label)}</div>`:''}</span></label>`).join(''):'<div class="mu">No mailboxes are set up yet.</div>'}</div><label style="display:flex;gap:9px;align-items:flex-start;flex-wrap:nowrap;cursor:pointer;margin:0 0 16px"><input type="radio" name="mbmode" value="all" style="flex:0 0 auto;margin:3px 0 0"><span style="min-width:0"><b>Every mailbox</b><div class="mu">No restriction \u2014 they see every mailbox that is not limited to specific people.</div></span></label><div class="mdl-a"><button class="gh" id="mbx">Cancel</button><button class="pri" id="mbok">Apply</button></div></div>`;
+document.body.appendChild(o);
+const lst=o.querySelector('#mba_l'),mode=()=>o.querySelector('input[name=mbmode]:checked')?.value||'pick';
+const upd=()=>{const p=mode()==='pick';lst.style.opacity=p?'':'.45';lst.querySelectorAll('.mba_c').forEach(c=>c.disabled=!p)};
+o.querySelectorAll('input[name=mbmode]').forEach(r=>r.onchange=upd);upd();
+const shut=v=>{o.remove();res(v)};
+o.querySelector('#mbok').onclick=()=>{if(mode()==='all'){shut({mode:'all',ids:[]});return}
+const ids=[...lst.querySelectorAll('.mba_c')].filter(c=>c.checked).map(c=>c.value);
+if(!ids.length){toast('Tick at least one mailbox, or choose \u201cEvery mailbox\u201d',true);return}
+shut({mode:'pick',ids})};
+o.querySelector('#mbx').onclick=()=>shut(null);o.addEventListener('mousedown',e=>{if(e.target===o)shut(null)})})}
+function toast(t,err){const d=document.createElement('div');d.className='toast'+(err?' err':'');
+d.textContent=t;document.getElementById('toasts').appendChild(d);setTimeout(()=>d.remove(),4600)}
+function fixLogos(scope){scope.querySelectorAll('img.skalogo').forEach(i=>{i.onerror=()=>{i.closest('.lchip')?i.closest('.lchip').replaceWith(Object.assign(document.createElement('span'),{innerHTML:LOGO})):i.outerHTML=LOGO}})}
+// ---------- per-user font ----------
+const FONTS=[['','System default'],["Inter, system-ui, sans-serif",'Inter'],["'Segoe UI', system-ui, sans-serif",'Segoe UI'],["Roboto, system-ui, sans-serif",'Roboto'],["Calibri, 'Segoe UI', sans-serif",'Calibri'],["Tahoma, sans-serif",'Tahoma'],["Verdana, sans-serif",'Verdana'],["Arial, Helvetica, sans-serif",'Arial'],["Helvetica, Arial, sans-serif",'Helvetica'],["'Trebuchet MS', sans-serif",'Trebuchet'],["Georgia, 'Times New Roman', serif",'Georgia'],["'Times New Roman', Times, serif",'Times New Roman'],["Cambria, Georgia, serif",'Cambria'],["Palatino, 'Palatino Linotype', serif",'Palatino'],["'Courier New', monospace",'Courier New'],["Consolas, 'Courier New', monospace",'Consolas']];
+function applyFont(f){UFONT=f||'';let st=document.getElementById('ufont');
+if(!st){st=document.createElement('style');st.id='ufont';document.head.appendChild(st)}
+st.textContent=UFONT?`body,button,input,select,textarea,.rte,.lrow,.card,h1,h2{font-family:${UFONT}!important}`:'';}
+let USIZE=100;
+function applyFontSize(pct){USIZE=+pct||100;document.documentElement.style.setProperty('--z',String(USIZE/100));}
+async function savePrefs(){try{const{error:_pe}=await hd.from('user_prefs').upsert({user_id:me.id,font_family:UFONT||null,font_size:USIZE,updated_at:new Date().toISOString()});if(_pe){toast('Could not save your display settings: '+_pe.message,true);return false}}catch(e){toast('Could not save your display settings: '+e.message,true);return false}return true}
+// ---------- searchable dropdown (type-to-search) ----------
+// items: [{v,label}]; onpick(value). Returns HTML; call wireCombo(scope) after insert.
+function comboHtml(id,items,cur,ph){const sel=items.find(x=>x.v===cur);
+return `<span class="combo" id="cb_${id}" data-items="${E(JSON.stringify(items))}">
+<input id="${id}_t" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" name="cbx_${id}_${Math.random().toString(36).slice(2,8)}" placeholder="${E(ph||'Type to search…')}" value="${E(sel?sel.label:'')}">
+<input type="hidden" id="${id}" value="${E(cur||'')}">
+<div class="opts"></div></span>`}
+function wireCombo(scope,onChange){scope.querySelectorAll('.combo').forEach(c=>{
+if(c.dataset.done)return;c.dataset.done=1;
+const t=c.querySelector('input:not([type=hidden])'),h=c.querySelector('input[type=hidden]'),box=c.querySelector('.opts');
+let items=[];try{items=JSON.parse(c.dataset.items)}catch(e){}
+const draw=q=>{const ql=(q||'').toLowerCase();
+const f=items.filter(x=>x.label.toLowerCase().includes(ql)).slice(0,60);
+box.innerHTML=f.map(x=>`<div data-v="${E(x.v)}">${E(x.label)}</div>`).join('')||'<div class="mu" style="padding:8px 10px">No match</div>';
+box.querySelectorAll('div[data-v]').forEach(d=>d.onmousedown=e=>{e.preventDefault();
+h.value=d.dataset.v;t.value=d.dataset.v?d.textContent:'';c.classList.remove('open');
+if(onChange)onChange(h.id,h.value)})};
+t.onfocus=()=>{draw(t.value);c.classList.add('open')};
+t.oninput=()=>{h.value='';draw(t.value);c.classList.add('open')};
+t.onblur=()=>setTimeout(()=>{c.classList.remove('open');
+if(!h.value){const _p=items.find(x=>x.v===(h.dataset.prev||''));if(_p&&_p.v){h.value=_p.v;t.value=_p.label}else t.value=''}
+h.dataset.prev=h.value},150)})}
+// Make every native <select> type-to-filter in place, without touching its id/value/onchange wiring.
+function mobileFilters(root){try{
+const mob=window.matchMedia('(max-width:640px)').matches;
+(root||document).querySelectorAll('.fbar').forEach(fb=>{
+let b=fb.querySelector(':scope>.fb-tog');
+if(!mob){fb.classList.remove('fb-m','fb-open');if(b)b.remove();return}
+const cnt=()=>[...fb.querySelectorAll('select')].filter(s=>!/sort/i.test(s.id||'')&&s.value).length;
+const paint=()=>{const n=cnt();b.textContent=(fb.classList.contains('fb-open')?'\u25b4':'\u25be')+' Filters'+(n?' ('+n+')':'')};
+if(!b){b=document.createElement('button');b.type='button';b.className='gh fb-tog';
+b.onclick=()=>{fb.classList.toggle('fb-open');paint()};
+const q=fb.querySelector(':scope>input[type=search]');
+if(q)q.insertAdjacentElement('afterend',b);else fb.prepend(b);
+fb.addEventListener('change',paint,true)}
+fb.classList.add('fb-m');paint()})}catch(e){}}
+function makeSearchable(root){try{(root||document).querySelectorAll('select:not([data-se])').forEach(sel=>{try{
+sel.dataset.se='1';if(sel.multiple||sel.options.length<2)return;
+const wrap=document.createElement('span');wrap.className='se-wrap';sel.parentNode.insertBefore(wrap,sel);wrap.appendChild(sel);
+const inp=document.createElement('input');inp.type='text';inp.setAttribute('autocomplete','off');inp.className=(sel.className||'')+' se-in';inp.readOnly=true;
+const cur=()=>sel.options[sel.selectedIndex];inp.value=cur()?cur().text:'';
+const panel=document.createElement('div');panel.className='se-panel';panel.hidden=true;
+wrap.appendChild(inp);wrap.appendChild(panel);sel.classList.add('se-hidden');
+const build=(q='')=>{const ql=q.toLowerCase();panel.innerHTML=[...sel.options].filter(o=>o.text.toLowerCase().includes(ql)).map(o=>`<div class="se-o${o.selected?' on':''}" data-v="${(o.value||'').replace(/"/g,'&quot;')}">${E(o.text)}</div>`).join('')||'<div class="se-o mu">No match</div>';};
+const openP=()=>{inp.readOnly=false;inp.value='';build('');panel.hidden=false;};
+const closeP=()=>{inp.readOnly=true;inp.value=cur()?cur().text:'';panel.hidden=true;};
+inp.addEventListener('mousedown',e=>{if(panel.hidden){e.preventDefault();openP();inp.focus();}});
+inp.addEventListener('input',()=>build(inp.value));
+inp.addEventListener('keydown',e=>{if(e.key==='Escape')closeP();else if(e.key==='Enter'){const f=panel.querySelector('.se-o[data-v]');if(f){sel.value=f.dataset.v;sel.dispatchEvent(new Event('change',{bubbles:true}));closeP();}e.preventDefault();}});
+panel.addEventListener('mousedown',e=>{const o=e.target.closest('.se-o[data-v]');if(!o)return;e.preventDefault();sel.value=o.dataset.v;sel.dispatchEvent(new Event('change',{bubbles:true}));closeP();});
+inp.addEventListener('blur',()=>setTimeout(closeP,160));
+}catch(e){try{sel.classList.remove('se-hidden')}catch(_){}}})}catch(e){}
+try{mobileFilters(root)}catch(e){}}
+// Earliest next mail run — the cron fires every 10 min on the :x0 boundary.
+const nrun=()=>new Date(Math.ceil(Date.now()/6e5)*6e5).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+let me=null,tab='triage',open=null,ppl=[],ban='',sel=new Set(),dsel=new Set(),DRAFTS=[],OWN=new Set(),LI=null,FILES=[],MHTML={},
+INB=[],ROLES=[],BLK=[],ACC=[],AR=[],SIG={html:'',text:''},CM=null,inbxEmail=id=>INB.find(i=>i.id===id)?.email_address||'',uName=id=>ppl.find(p=>p.id===id)?.n??(id?'Unknown':'System');
+const F={q:'',status:'',source:'',owner:'',inbox:'',client:'',tag:'',priority:'',att:'',foc:'focused'};
+let NTRI=0,NMINE=0,NALL=0,NPOOL=0,NLATE=0,NDR=0,NMYM=0,SEENT=new Set(),REV=new Set(),TAGS=[],CT=[],CTT=[],CTINB={},RET=null;let MYMODE=false,HASMM=false,DRAFTSCOPE='account',RESTRICTON=true,RESTR={},TAGR={},TAGRCONN=false,SUPAC=3;
+function _acDue(at){if(!SUPAC||SUPAC<=0||!at)return null;const d=new Date(at);if(isNaN(d.getTime()))return null;return new Date(d.getTime()+SUPAC*864e5);}
+function _acLeft(at){const d=_acDue(at);if(!d)return null;const ms=d.getTime()-Date.now();if(ms<=0)return 'shortly';const h=Math.ceil(ms/36e5);return h<48?(h+' hour'+(h===1?'':'s')):(Math.ceil(h/24)+' days');}
+let NTRIF=null,NTRIFK='',_tcDeb=null,_FNDEV=0;
+let OPENT=null,UNM=null,AF='ignored',ASQ='',IGD=[],ODD=[],SND=[],SARCH=90,EVD=[],EVTOTAL=0,DEPTS=[],MYVIS=new Set(),SNT=[],NSENT=0,PENDTRI=null,SENTV='mine',SKIND='all',SNTM=[],SNTA=[],SNTQ=[],SPIDS=new Set(),SREP=new Set();
+let DLMAX=6,OPENSEND=false,SMODE='list';const dlMaxDate=()=>{const d=new Date();d.setMonth(d.getMonth()+(DLMAX||6));return toDate(d)};
+let EMTAG={},FEAT={activity:true,housekeeping:false,mailboxes:true,all_tickets:true},TSORT='newest',LSORT='newest',FA=[],FG=[];
+let APPR=null,PEND=[],ADMTAB='team',CTN=0,TSET=null,TMSORT={k:'name',d:1},SADAYS=90,DFMT='dmy';
+let ONBHTML='',ONBON=true,ONBSEEN=false;
+let IDLE_MIN=30,_idleIv=null,_idleLastWrite=0,_idleGone=false,_idleBound=false,_idleHB=0;
+let SUPREP=[];
+let NMYHELP=0,NMYHELPO=0,NMYACT=0,SBEN=true,SBSCOPE='everyone',SBADMINALL=true,HIDEMYREQ=true,NHELP=0,NHELPNEW=0,PENDRESOLVE=null,SROPEN=null,SROPEN_TAB='';
+function supRepBanner(){if(!SUPREP||!SUPREP.length)return '';
+return SUPREP.map(r=>`<div class="ban" data-sr="${r.id}" style="background:var(--c-info-bg);color:var(--c-info-tx);border:1px solid var(--c-accent);display:flex;gap:12px;align-items:flex-start;justify-content:space-between">
+<div class="suprep_open" data-id="${r.id}" style="min-width:0;cursor:pointer"><b>🛟 ${E(uName(r.replied_by))} (Portal Admin)</b> replied to your reported issue — <b>tap to read and reply</b><div style="white-space:pre-wrap;word-break:break-word;margin-top:2px">${E(r.reply)}</div><div class="mu" style="margin-top:3px">Re: “${E((r.body||'').slice(0,70))}${(r.body||'').length>70?'…':''}”${r.replied_at?' · '+A(r.replied_at):''} · <u>Open conversation →</u></div></div>
+<b class="suprep_x" data-id="${r.id}" title="Dismiss" style="cursor:pointer;flex:0 0 auto;font-size:15px">✕</b></div>`).join('');}
+let VIPS=new Set(),MF='open',TRX=null,LRX=null,SB=[],NRES=0,CEMAILS=[],CTPAGE=0,CTOT=0,UFONT='',ASORT='newest',LF='all',SR=[],SRF='open',MYT=[],MHF='open',MSQ='',MSORT='recent',SSORT='recent',SSQ='',ASRES=null,CLOPT=[];
+let CE={mail:true,reply:true,help:true};
+function ceOn(k){return !CE||CE[k]!==false}
+try{const _ab=document.createElement('style');_ab.id='actbtn';
+_ab.textContent=".gh{border-color:var(--c-border);background:var(--c-surface-2);color:var(--c-text);font-size:12.5px;padding:6px 11px;border-radius:8px;line-height:1.2}"+".gh:hover{border-color:var(--c-accent);color:var(--c-accent);background:var(--c-surface)}"+".gh:active{transform:translateY(1px)}"+".gh[disabled]{opacity:.55;cursor:default;transform:none}"+".actbar{opacity:.9}.card:hover .actbar,.actbar:focus-within{opacity:1}"+"@media(max-width:640px){.actbar{width:100%;justify-content:flex-start!important;margin-top:6px}}"+".ago{cursor:help}";document.head.appendChild(_ab)}catch(e){}
+try{const _fs=document.createElement('style');_fs.id='fbarfix';
+_fs.textContent="@media(min-width:641px){.fbar input[type=search],.fbar>.se-wrap{flex:1 1 220px;width:auto;min-width:180px}.fbar>.se-wrap>.se-in{width:100%;box-sizing:border-box}}@media(max-width:640px){html,body{overflow-x:hidden}.card{box-sizing:border-box}.card table{display:block;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.card table td,.card table th{white-space:nowrap}.card input,.card select,.card textarea{max-width:100%;box-sizing:border-box}.ibx{left:auto;right:0}.mailhost{overflow-x:auto;-webkit-overflow-scrolling:touch}.fbar.fb-m>.se-wrap,.fbar.fb-m>select,.fbar.fb-m>label,.fbar.fb-m>button:not(.fb-tog){display:none}.fbar.fb-m.fb-open>.se-wrap,.fbar.fb-m.fb-open>select,.fbar.fb-m.fb-open>label,.fbar.fb-m.fb-open>button:not(.fb-tog){display:block}.fbar.fb-m>input[type=search]{flex:1 1 100%}.fbar .fb-tog{flex:0 0 auto;white-space:nowrap}.ftabs{position:static}.fab{bottom:calc(20px + env(safe-area-inset-bottom,0px));right:calc(16px + env(safe-area-inset-right,0px))}aside{padding-bottom:env(safe-area-inset-bottom,0px)}.mlist{padding-bottom:76px}}";
+document.head.appendChild(_fs)}catch(_e){}
+function setDep(scope,on,hint){if(!scope)return;
+scope.style.opacity=on?'':'.45';scope.style.pointerEvents=on?'':'none';
+scope.setAttribute('aria-disabled',on?'false':'true');
+scope.querySelectorAll('input,select,textarea,button').forEach(el=>{el.disabled=!on});
+if(hint)hint.style.display=on?'none':'';}
+function bindCE(scope,key,btnSel){if(!scope||scope._ceb)return;scope._ceb=1;scope.addEventListener('keydown',e=>{if(e.key!=='Enter'||!(e.ctrlKey||e.metaKey)||e.shiftKey||e.altKey)return;if(!ceOn(key))return;const b=scope.querySelector(btnSel);if(!b||b.disabled)return;e.preventDefault();e.stopPropagation();b.click()});}
+function _aprs(){return (APPR&&APPR.approver_ids&&APPR.approver_ids.length)?APPR.approver_ids:((APPR&&APPR.approver_id)?[APPR.approver_id]:[]);}
+function _needAppr(){const a=_aprs();const _any=!!(APPR&&APPR.approver_any_admin);return (a.length>0||_any)&&a.indexOf(me.id)<0&&!me.crm;}
+/* ---- auto sign-out on inactivity (admin-configurable via tenant_settings.inactivity_minutes; 0 = off) ---- */
+function _idleActNow(){try{localStorage.setItem('ska.hd.act',String(Date.now()))}catch(e){}}
+function _idleActGet(){try{return +localStorage.getItem('ska.hd.act')||0}catch(e){return 0}}
+function _idleTick(){if(!IDLE_MIN)return;const last=_idleActGet()||Date.now();if(Date.now()-last>=IDLE_MIN*60000)idleLogout()}
+async function idleLogout(){if(_idleGone)return;_idleGone=true;await doSignOut('inactivity');login('For your security you were signed out after '+IDLE_MIN+' minute'+(IDLE_MIN===1?'':'s')+' of inactivity. Sign in to continue.')}
+function startIdle(){
+if(!IDLE_MIN){clearInterval(_idleIv);_idleIv=null;return}
+_idleGone=false;_idleActNow();
+if(!_idleBound){_idleBound=true;
+const bump=()=>{const n=Date.now();if(n-_idleLastWrite>5000){_idleLastWrite=n;_idleActNow()}
+if(n-_idleHB>12e4){_idleHB=n;try{hd.rpc('touch_session')}catch(e){}}};
+['click','keydown','mousemove','wheel','scroll','touchstart'].forEach(ev=>window.addEventListener(ev,bump,{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)_idleTick()})}
+clearInterval(_idleIv);_idleIv=setInterval(_idleTick,15000)}
+async function doSignOut(reason){
+try{const{data:{session:_s}}=await pb.auth.getSession();const _t=_s&&_s.access_token;let sid=null;
+if(_t){try{const _pl=JSON.parse(atob(_t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));sid=(_pl&&_pl.session_id)||null}catch(e){}}
+await hd.rpc('portal_signout',{p_session_id:sid,p_reason:reason||'manual'})}catch(e){}
+clearInterval(_idleIv);_idleIv=null;
+try{await pb.auth.signOut({scope:'local'})}catch(e){}}
+const LG={q:'',ev:'',actor:'',kind:'',order:'desc'};let LGACTS=[],LGKINDS=[];
+const SF={q:'',inbox:'',sort:'newest',att:'',org:''};
+const AVC=['#3a5275','#7c5295','#2e7d6b','#a4502f','#876b2c','#566b48','#31557d','#8a4b6b'];
+const avat=name=>{const s=(name||'?').trim()||'?';
+const i=[...s].reduce((a,c)=>a+c.charCodeAt(0),0)%AVC.length;
+const init=s.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';
+return `<span class="av" style="background:${AVC[i]}">${E(init)}</span>`};
+// Pick + resize an avatar to a 128px square JPEG data URL (small enough to store inline).
+function avatarPick(){return new Promise(res=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.oncancel=()=>res(null);
+inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f){res(null);return}const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const S=128,cv=document.createElement('canvas');cv.width=S;cv.height=S;const cx=cv.getContext('2d');const sc=Math.max(S/img.width,S/img.height),w=img.width*sc,h=img.height*sc;cx.drawImage(img,(S-w)/2,(S-h)/2,w,h);res(cv.toDataURL('image/jpeg',0.85))};img.onerror=()=>res(null);img.src=fr.result};fr.onerror=()=>res(null);fr.readAsDataURL(f)};inp.click()})}
+const dayGrp=iso=>{const d=new Date(iso),n=new Date(),sd=x=>x.toDateString();
+if(sd(d)===sd(n))return'Today';
+if(sd(d)===sd(new Date(+n-864e5)))return'Yesterday';
+if(+n-+d<6*864e5)return'This week';return'Earlier'};
+function cleanMail(html){
+const d=new DOMParser().parseFromString(html,'text/html');
+d.querySelectorAll('script,iframe,object,embed,form,audio,video').forEach(n=>n.remove());
+d.querySelectorAll('meta').forEach(n=>{if(/refresh/i.test(n.getAttribute('http-equiv')||''))n.remove()});
+d.querySelectorAll('*').forEach(n=>{[...n.attributes].forEach(a=>{
+if(/^on/i.test(a.name))n.removeAttribute(a.name);
+else if(/^(href|src|xlink:href)$/i.test(a.name)&&/^\s*(javascript|vbscript|data:text\/html)/i.test(a.value))n.removeAttribute(a.name)})});
+const b=d.createElement('base');b.target='_blank';b.rel='noopener';d.head.prepend(b);
+const st=d.createElement('style');st.textContent='body{margin:14px;background:#fff;color:#222;font:14px/1.5 Arial,Helvetica,sans-serif;word-break:break-word}img{max-width:100%;height:auto}table{max-width:100%}';
+d.head.appendChild(st);
+return '<!doctype html>'+d.documentElement.outerHTML}
+function hydrateMail(scope){scope.querySelectorAll('.mailhost').forEach(h=>{
+if(h.dataset.done)return;h.dataset.done=1;
+const html=MHTML[h.dataset.mid];if(!html)return;
+const f=document.createElement('iframe');
+f.className='mailf';f.setAttribute('sandbox','allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+f.style.height='120px';
+f.srcdoc=cleanMail(html);
+f.onload=()=>{try{const hh=f.contentDocument.documentElement.scrollHeight;
+f.style.height=Math.min(Math.max(hh+10,80),1000)+'px'}catch(e){}};
+h.replaceWith(f)})}
+// ---------- first-login "how to use" guide (admin-configurable) ----------
+function cleanGuide(html){const d=new DOMParser().parseFromString(html||'','text/html');
+d.querySelectorAll('script,iframe,object,embed,form,style,link,meta').forEach(n=>n.remove());
+d.querySelectorAll('*').forEach(n=>{[...n.attributes].forEach(a=>{if(/^on/i.test(a.name)||(/^(href|src)$/i.test(a.name)&&/^\s*(javascript|vbscript|data:)/i.test(a.value)))n.removeAttribute(a.name)})});
+d.querySelectorAll('a[href]').forEach(a=>{a.setAttribute('target','_blank');a.setAttribute('rel','noopener noreferrer')});
+return d.body.innerHTML}
+const ONB_DEFAULT=`
+<h2>Welcome to Single Key Advisory Mail 👋</h2>
+<p>This is your team's shared mail desk. Client and enquiry emails land here, and the team turns them into trackable tasks — so nothing gets missed and everyone can see what's handled. Here's a quick tour.</p>
+<h3>1 · The big idea</h3>
+<p>An entire email conversation appears as <b>one row</b> in the <b>Inbox</b>. Nothing becomes a task on its own — you decide. You "sort" a conversation by assigning it to a teammate or dropping it into the <b>Document pool</b>, which turns it into a <b>ticket</b> with a deadline. From there it's worked, replied to, and resolved, and the whole thread stays together as one unit.</p>
+<h3>2 · New mail arrives automatically</h3>
+<p>The portal checks the connected mailboxes every few minutes and pulls in new email for you — you never fetch anything by hand. In a hurry? Hit <b>⟳ Sync now</b> at the top of the Inbox to pull the very latest right away. New conversations land in the <b>Inbox</b>, ready to be sorted.</p>
+<h3>3 · The menu (left side)</h3>
+<ul>
+<li><b>Inbox</b> — new conversations waiting to be sorted; the number shows how many are pending.</li>
+<li><b>My tickets</b> — everything assigned to you; your day starts here.</li>
+<li><b>Document pool</b> — a shared queue anyone can <b>claim</b> from.</li>
+<li><b>All tickets</b> — the whole team's tickets (if your admin enables it for you).</li>
+<li><b>Late &amp; at risk</b> — tickets past their deadline or getting close.</li>
+<li><b>Resolved</b> — closed tickets; reopen any of them anytime.</li>
+<li><b>Drafts</b> — your saved drafts, plus anything that failed or was blocked, ready to fix and resend.</li>
+<li><b>Sent</b> — mail sent from the portal (yours, or the whole team's if enabled).</li>
+<li><b>Archive</b> — older mail and anything you've ignored.</li>
+<li><b>Settings</b> — your preferences (and team controls for admins).</li>
+</ul>
+<h3>4 · Sorting a conversation</h3>
+<ul>
+<li>Open a conversation, then on the right choose where it goes — a <b>teammate</b> or the <b>Document pool</b> — and set a <b>deadline</b> (required) and a <b>priority</b> (Normal / High / Urgent).</li>
+<li>Not useful? <b>Ignore</b> the conversation — that hides just <i>this</i> thread (it moves to Archive → Ignored); future mail from the same sender still lands in the Inbox. Or <b>block</b> the sender to stop their mail for good. If your workspace uses approvals, these go to an admin first.</li>
+<li>Every mail in the thread is sorted in one go — you never handle them one by one.</li>
+</ul>
+<h3>5 · Reading, replying &amp; resolving</h3>
+<ul>
+<li>Open a conversation to read the full thread on the right; images and formatting render inline.</li>
+<li>Hit <b>Reply</b> or <b>Reply all</b>, add <b>CC / BCC</b>, and attach files — your <b>signature</b> is added automatically, with simple rich-text formatting.</li>
+<li>Mark a ticket <b>Resolved</b> when you're done (it moves to Resolved and can be reopened), set it <b>Pending</b> while you wait on someone, or <b>send it back</b> to the Inbox if it isn't yours.</li>
+<li>Opening a mail marks it <b>read</b> for you; unread mail is shown in bold. Use <b>✕ Close</b> to return to the list.</li>
+</ul>
+<h3>6 · Writing &amp; sending mail</h3>
+<ul>
+<li>Start a fresh email with <b>✉ New mail</b> (top-left of the sidebar). Add the recipient(s), a subject, <b>CC / BCC</b>, and attachments.</li>
+<li>Sending is <b>queued</b> and goes out on the next send run (usually within a few minutes) from your mailbox — you don't have to keep the tab open.</li>
+<li>If a recipient isn't on the approved list, you'll see <b>Request approval</b> instead of Send; it goes out once an admin approves. Not ready? <b>Save draft</b> and finish later.</li>
+</ul>
+<h3>7 · Drafts, Sent &amp; status</h3>
+<ul>
+<li><b>Drafts</b> holds unfinished mail, plus anything that <b>failed</b> or was <b>blocked</b> — open it to fix and resend.</li>
+<li><b>Sent</b> shows what has gone out and what is still <b>queued</b>. Watch the little status pill (<b>queued → sent</b>, or <b>failed</b>) to know where a message is.</li>
+</ul>
+<h3>8 · Tags, clients &amp; senders</h3>
+<ul>
+<li><b>Labels</b> — colour-coded tags you can attach to a sender to organise the Inbox.</li>
+<li><b>Clients &amp; VIP</b> — link a sender to a client, or flag a VIP so their mail stands out.</li>
+<li><b>Ignoring mail</b> — the <b>Ignore</b> button on a conversation hides only <i>that</i> one thread. To silence a sender permanently, add the <b>Ignore</b> tag to their address — that hides all of their future mail too.</li>
+<li><b>Block</b> — stops a sender's mail entirely: workspace-wide, or team-only so admins still see it.</li>
+</ul>
+<h3>9 · Your account &amp; preferences</h3>
+<ul>
+<li>In <b>Settings → Your preferences</b>: set your <b>name</b> and <b>photo</b>, change your <b>username</b> and <b>password</b>, and edit your <b>email signature</b>.</li>
+<li>Make it yours: pick a <b>font</b> and <b>text size</b>, choose a <b>theme</b> (Outlook or Gmail, light or dark), and set your <b>keyboard shortcuts</b>.</li>
+</ul>
+<h3>10 · Install it as an app 📱💻</h3>
+<p><b>On your phone:</b> open the portal in your browser and choose <b>Add to Home Screen</b> (iPhone: the Share menu; Android: the install prompt).</p>
+<p><b>On a computer:</b> in Chrome or Edge, click the <b>install icon</b> in the address bar (a small monitor with a downward arrow, near the right end), or use the browser menu — Chrome: <b>⋮ → Cast, save, and share → Install this page as an app</b>; Edge: <b>⋯ → Apps → Install this site as an app</b> — then click <b>Install</b>.</p>
+<p>Either way it installs like a real app: its own icon, its own full-screen window, and it updates itself automatically. When a new version ships while you're using it, a small <b>"A new version is available — Refresh"</b> bar appears.</p>
+<h3>11 · Handy to know</h3>
+<ul>
+<li><b>Search &amp; filters</b> sit at the top of each list — filter by status, client, tag, priority or attachments.</li>
+<li><b>Keyboard shortcuts</b> speed things up — press <b>?</b> to see the cheat sheet.</li>
+<li><b>Unread</b> mail is bold; opening it marks it read for you.</li>
+<li>Something broken? Tap <b>🛟 Report issue</b> (bottom-left) — it captures your current screen and sends it to your admin.</li>
+<li>Reopen this guide anytime from the <b>❔ Guide</b> button at the top of the Inbox.</li>
+</ul>
+<h3>For admins</h3>
+<p>Under <b>Settings</b> you manage team members and usernames, the shared temporary password, mailboxes, the <b>sync interval</b>, send &amp; approval rules, feature access, tags &amp; clients, retention, and more. You can also edit or switch off this welcome guide from the <b>Welcome guide</b> card, and re-show it to everyone after an update.</p>
+`;
+function showGuide(auto){if(auto)ONBSEEN=true;const o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true" style="width:min(680px,calc(100vw - 24px));max-height:88vh;display:flex;flex-direction:column;padding:0">
+<div style="padding:15px 20px;border-bottom:1px solid var(--c-border);display:flex;justify-content:space-between;align-items:center;gap:10px">
+<div class="mdl-t" style="margin:0">How to use this portal</div>
+<button class="gh gd_x" style="font-size:17px;line-height:1;padding:3px 9px" title="Close">✕</button></div>
+<div class="gd_body" style="padding:8px 20px 16px;overflow:auto;line-height:1.6">${cleanGuide(ONBHTML||ONB_DEFAULT)}</div>
+<div style="padding:12px 20px;border-top:1px solid var(--c-border);display:flex;justify-content:flex-end;gap:8px">
+<button class="pri gd_ok">${auto?'Got it — let’s go':'Close'}</button></div></div>
+<style>.gd_body h2{font-size:18px;margin:2px 0 8px}.gd_body h3{font-size:14px;margin:16px 0 6px;color:var(--c-accent)}.gd_body p{margin:0 0 8px}.gd_body ul{margin:0 0 10px;padding-left:20px}.gd_body li{margin:3px 0}.gd_body b{color:var(--c-text)}.gd_body a{color:var(--c-accent)}</style>`;
+document.body.appendChild(o);
+const done=()=>{document.removeEventListener('keydown',k);o.remove();if(auto){try{hd.from('user_prefs').upsert({user_id:me.id,onboarding_seen:true,updated_at:new Date().toISOString()}).then(()=>{},()=>{})}catch(e){}}};
+o.querySelector('.gd_ok').onclick=done;o.querySelector('.gd_x').onclick=done;
+o.addEventListener('mousedown',e=>{if(e.target===o)done()});
+const k=e=>{if(e.key==='Escape'){e.preventDefault();done()}};document.addEventListener('keydown',k)}
+
+async function who(){const{data:{user}}=await pb.auth.getUser();if(!user)return null;
+const{data:p}=await pb.from('profiles').select('full_name,is_platform_admin,designation,avatar_url').eq('id',user.id).maybeSingle();
+const{data:m}=await pb.from('memberships').select('tenant_id,role,member_roles(roles(name,sort_order))').eq('user_id',user.id).maybeSingle();
+if(!m)return{email:user.email,none:1};
+const ro=(m.member_roles??[]).map(x=>x.roles).filter(Boolean)
+.sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)||(a.name||'').localeCompare(b.name||''));
+const r=ro.map(x=>x.name);
+return{id:user.id,name:p?.full_name??user.email,roles:r,tenant:m.tenant_id,
+crm:m.role==='admin'||p?.is_platform_admin||r.some(x=>x.toLowerCase()==='crm'),
+platform:!!p?.is_platform_admin,avatar:p?.avatar_url||'',
+label:p?.designation??(m.role==='admin'?'Admin':(r[0]??m.role))}}
+async function people(){const{data}=await hd.rpc('staff_roster');
+ppl=(data??[]).map(r=>({id:r.id,n:r.full_name??'(unnamed)'}))}
+async function loadPrefs(){const{data}=await hd.from('user_prefs').select('*').eq('user_id',me.id).maybeSingle();
+SIG={html:data?.signature_html??'',text:data?.signature_text??''};applyFont(data?.font_family??'');applyFontSize(data?.font_size??100);ONBSEEN=!!(data&&data.onboarding_seen);HIDEMYREQ=(data?data.hide_myreq_when_empty!==false:true);
+SC=Object.assign(scDefaults(),(data&&data.shortcuts&&typeof data.shortcuts==='object')?data.shortcuts:{});CE=Object.assign({mail:true,reply:true,help:true},(data&&data.ctrl_enter&&typeof data.ctrl_enter==='object')?data.ctrl_enter:{});initShortcuts()}
+// ---------- keyboard shortcuts (per-user configurable) ----------
+const SC_ACTIONS=[
+['compose','New mail','c'],['search','Focus search','/'],
+['inbox','Go to Inbox','i'],['mine','Go to My tickets','m'],['pool','Go to Document pool','d'],
+['resolved','Go to Resolved','v'],['sent','Go to Sent','y'],['settings','Go to Settings','s'],
+['reply','Reply (in an open ticket)','r'],['resolve','Resolve / Reopen','e'],
+['pending','Pending / Resume','p'],['urgent','Mark urgent','u'],['claim','Assign / claim to me','a'],
+['help','Show shortcuts cheat sheet','?']];
+let SC=scDefaults();
+const SC_THREAD=new Set(['reply','resolve','pending','urgent','claim']);
+function scDefaults(){const o={};SC_ACTIONS.forEach(([id,,k])=>o[id]=k);return o}
+function scLabel(id){const r=SC_ACTIONS.find(a=>a[0]===id);return r?r[1]:id}
+async function saveShortcuts(){try{const{error:_se}=await hd.from('user_prefs').upsert({user_id:me.id,shortcuts:SC,updated_at:new Date().toISOString()});if(_se){toast('Could not save your shortcuts: '+_se.message,true);return false}}catch(e){toast('Could not save your shortcuts: '+e.message,true);return false}return true}
+let SC_BOUND=false;
+function initShortcuts(){if(SC_BOUND)return;SC_BOUND=true;
+document.addEventListener('keydown',e=>{
+if(me&&(e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&(e.key==='.'||e.code==='Period')){e.preventDefault();const _sb=document.getElementById('sbt');if(_sb)_sb.click();return}
+if(!me||e.ctrlKey||e.metaKey||e.altKey)return;
+const t=e.target;
+if(t&&(t.isContentEditable||/^(input|textarea|select)$/i.test(t.tagName)))return;
+if(document.querySelector('.mdl,.ovl'))return;
+if(CM!==null)return;
+const k=e.key;if(!k||k.length!==1)return;
+const kl=k.toLowerCase();let hit=null;for(const id in SC){const sk=SC[id];if(sk&&(sk===k||sk.toLowerCase()===kl)){hit=id;break}}
+if(!hit)return;
+if(SC_THREAD.has(hit)&&!open)return;
+e.preventDefault();runShortcut(hit)},true)}
+function runShortcut(id){
+const nav=t=>{CM=null;tab=t;open=null;sel.clear();dsel.clear();F.q='';F.status='';F.source='';F.owner='';F.client='';F.tag='';F.priority='';F.att='';SSQ='';SSORT='recent';SRF='open';MSQ='';MSORT='recent';MHF='open';PENDRESOLVE=null;TRX=null;LRX=null;go()};
+const click=s=>{const b=document.querySelector(s);if(b){b.click();return true}return false};
+switch(id){
+case 'compose':CM={};go();break;
+case 'search':{const s=document.querySelector('#fq,#lg_q,#sf_q');if(s){s.focus();try{s.select()}catch(_){}}break}
+case 'inbox':nav('triage');break;
+case 'mine':nav('mine');break;
+case 'pool':nav('pool');break;
+case 'resolved':nav('resolved');break;
+case 'sent':nav('sent');break;
+case 'settings':nav('inbox');break;
+case 'reply':{if(!click('#cb_rep')){const ed=document.querySelector('#rp');if(ed){ed.scrollIntoView({block:'center'});ed.focus()}}break}
+case 'resolve':click('#cb_res')||click('#cb_reopen')||click('#mv_res')||click('#mv_reopen');break;
+case 'pending':click('#cb_pnd')||click('#mv_pnd');break;
+case 'urgent':click('#cb_urg');break;
+case 'claim':click('#cb_mine');break;
+case 'help':scHelp();break}}
+function scHelp(){const o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true" style="width:min(460px,calc(100vw - 24px));max-height:86vh;display:flex;flex-direction:column;padding:0">
+<div style="padding:15px 20px 11px;border-bottom:1px solid var(--c-border);flex:0 0 auto">
+<div class="mdl-t" style="margin:0">Keyboard shortcuts</div>
+<div class="mdl-m" style="margin:6px 0 0">These work anywhere except while typing in a box. Change any of them under Settings \u2192 Your preferences.<br><b>Ctrl</b> + <b>.</b> (or <b>\u2318</b> + <b>.</b>) hides or shows the sidebar \u2014 that one is fixed and works while typing too.</div></div>
+<div style="flex:1;min-height:0;overflow:auto;padding:4px 20px 10px">
+<table style="width:100%;font-size:13px;border-collapse:collapse">${SC_ACTIONS.map(([id,l])=>`<tr><td style="padding:6px 0;border-bottom:1px solid var(--c-border)">${E(l)}</td><td style="text-align:right;border-bottom:1px solid var(--c-border);white-space:nowrap">${id==='help'?`<kbd class="kbd">${E(SC[id]||'?')}</kbd>`:`<input class="sck" data-a="${id}" value="${E(SC[id]??'')}" maxlength="1" title="Type a single key, or clear the box to switch this shortcut off" style="width:36px;text-align:center;font-weight:700">`}</td></tr>`).join('')}</table>
+<div class="mu" style="margin-top:8px">Type a single key in any box, or clear it to switch that shortcut off. The cheat-sheet key itself can\u2019t be changed.</div></div>
+<div style="padding:12px 20px;border-top:1px solid var(--c-border);display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;flex:0 0 auto"><span class="mu sc_m" style="margin-right:auto"></span><button class="gh sc_rs">Reset to defaults</button><button class="gh mdl-x">Close</button><button class="pri sc_sv">Save</button></div></div>`;
+document.body.appendChild(o);const shut=()=>{document.removeEventListener('keydown',key);o.remove()};
+o.querySelector('.mdl-x').onclick=shut;o.addEventListener('mousedown',e=>{if(e.target===o)shut()});
+{const _m=o.querySelector('.sc_m'),_sv=o.querySelector('.sc_sv'),_rs=o.querySelector('.sc_rs');
+if(_sv)_sv.onclick=async()=>{const nm={help:SC.help||'?'};
+o.querySelectorAll('.sck').forEach(i=>{nm[i.dataset.a]=(i.value||'').trim()});
+const used={};let dup='';
+for(const a in nm){const v=nm[a];if(!v)continue;if(used[v]){dup=v;break}used[v]=a}
+if(dup){if(_m){_m.style.color='var(--c-danger,#c0392b)';_m.textContent='\u201c'+dup+'\u201d is assigned twice \u2014 each key must be unique.'}return}
+_sv.disabled=1;SC=Object.assign(scDefaults(),nm);await saveShortcuts();_sv.disabled=0;
+if(_m){_m.style.color='';_m.textContent='Saved \u2713'}toast('Keyboard shortcuts saved')};
+if(_rs)_rs.onclick=async()=>{SC=scDefaults();await saveShortcuts();
+o.querySelectorAll('.sck').forEach(i=>{i.value=SC[i.dataset.a]??''});
+if(_m){_m.style.color='';_m.textContent='Reset to defaults \u2713'}toast('Shortcuts reset to defaults')};}
+const key=e=>{if(e.key==='Escape'){e.preventDefault();shut()}};document.addEventListener('keydown',key)}
+initShortcuts();
+async function loadInb(){const{data}=await hd.from('inboxes').select('*').order('email_address');INB=data??[];
+OWN=new Set(INB.map(i=>(i.email_address||'').toLowerCase()))}
+async function loadRoles(){const{data}=await pb.from('roles').select('id,name').eq('active',true).order('name');ROLES=data??[]}
+async function banner(){try{const{data}=await hd.from('v_inbox_status').select('email_address,last_synced_at');
+if(data){const pend=data.filter(i=>!i.last_synced_at).length;
+ban=pend?`First sync still running — ${pend} of ${data.length} mailboxes not read yet. Settings → Sync now, or wait for the 10-minute schedule.`:''}}catch(e){}
+try{const W=()=>hd.from('v_ticket_workspace').select('id',{count:'exact',head:true});
+const[t1,t2,t3,t4,t5,t6,sv,t7,t8]=await Promise.all([
+hd.from('v_crm_triage_threads').select('thread_id',{count:'exact',head:true}),
+W().eq('assignee_id',me.id).not('status','in','("closed","resolved")'),
+W().not('status','in','("closed","resolved")'),
+W().eq('is_pool',true).is('assignee_id',null).not('status','in','("closed","resolved")'),
+W().in('health',['breached','at_risk']),
+hd.from('outbound_messages').select('id',{count:'exact',head:true}).eq('created_by',me.id).in('status',['draft','failed','blocked']),
+hd.from('ticket_views').select('ticket_id').eq('user_id',me.id).limit(2000),
+(()=>{if(!((FEAT&&FEAT.all_sent)||me.crm))return hd.from('outbound_messages').select('id',{count:'exact',head:true}).eq('created_by',me.id).in('status',['sent','queued']);const own=INB.filter(i=>MYVIS.size?MYVIS.has(i.id):true).map(i=>i.email_address);
+let s=hd.from('messages').select('id',{count:'exact',head:true}).eq('direction','outbound');
+s=own.length?s.in('from_email',own):s.eq('direction','__none__');return s})(),
+W().in('status',['resolved','closed']).gte('closed_at',new Date(Date.now()-((RET?.resolved_visible_days??30)*864e5)).toISOString())]);
+NTRI=t1.count??0;NMINE=t2.count??0;NALL=t3.count??0;NPOOL=t4.count??0;NLATE=t5.count??0;NDR=t6.count??0;NSENT=t7.count??0;NRES=t8.count??0;
+SEENT=new Set((sv.data??[]).map(x=>x.ticket_id))}catch(e){}
+try{const[_h1,_h2,_h3,_h4]=await Promise.all([hd.rpc('my_support_count'),hd.rpc('my_support_open_count'),hd.rpc('my_support_awaiting_count'),me.platform?hd.from('support_requests').select('id',{count:'exact',head:true}).neq('status','resolved').is('admin_resolved_at',null):Promise.resolve({count:null})]);
+if(typeof _h1?.data==='number')NMYHELP=_h1.data;
+if(typeof _h2?.data==='number')NMYHELPO=_h2.data;
+if(typeof _h3?.data==='number')NMYACT=_h3.data;
+if(typeof _h4?.count==='number')NHELP=_h4.count}catch(e){}
+if(me.platform){try{const{data:_hn}=await hd.rpc('support_unseen_count');NHELPNEW=_hn||0}catch(e){}}
+if(HASMM){try{const{count:_mm}=await hd.from('v_my_mails').select('message_id',{count:'exact',head:true});if(typeof _mm==='number')NMYM=_mm}catch(e){}}}
+function curBrand(){return (document.documentElement.dataset.theme||'gmail-dark').indexOf('gmail')===0?'gmail':'outlook'}
+function curMode(){return (document.documentElement.dataset.theme||'gmail-dark').indexOf('dark')>=0?'dark':'light'}
+function setTheme(t){try{localStorage.setItem('ska.hd.theme',t)}catch(e){}
+document.documentElement.dataset.theme=t;go(true)}
+/* ---- web push notifications (per-device opt-in) ---- */
+const VAPID_PUB='BB_wYo2cty_2i6W_3MecdTMeCz7Z3WDMPLa5adl2zEEqeDIxmmlIJsnCY6o4jwxpk_eyjwA0GYNKGfQi8oz91-A';
+function _urlB64ToU8(b64){const pad='='.repeat((4-b64.length%4)%4);const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(s);const a=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i);return a}
+function _isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent||'')}
+function _isStandalone(){return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true}
+async function notifState(){try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||typeof Notification==='undefined')return 'unsupported';if(Notification.permission==='denied')return 'denied';const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();return sub?'on':'off'}catch(e){return 'off'}}
+async function notifEnable(){
+if(!('serviceWorker'in navigator)||!('PushManager'in window)||typeof Notification==='undefined'){toast('This browser does not support notifications',true);return false}
+if(_isIOS()&&!_isStandalone()){toast('On iPhone/iPad, first install the app: Share → Add to Home Screen, then open it and turn this on.',true);return false}
+let perm=Notification.permission;if(perm!=='granted')perm=await Notification.requestPermission();
+if(perm!=='granted'){toast('Notifications are blocked — allow them for this site in your browser settings',true);return false}
+const reg=await navigator.serviceWorker.ready;
+let sub=await reg.pushManager.getSubscription();
+if(!sub){try{sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_urlB64ToU8(VAPID_PUB)})}catch(e){toast('Could not enable notifications: '+(e&&e.message||e),true);return false}}
+const j=sub.toJSON();
+const{error}=await hd.rpc('save_push_subscription',{p_endpoint:sub.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth,p_ua:(navigator.userAgent||'').slice(0,300)});
+if(error){toast(error.message,true);return false}
+return true}
+async function notifDisable(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){try{await hd.rpc('remove_push_subscription',{p_endpoint:sub.endpoint})}catch(e){}await sub.unsubscribe()}}catch(e){}}
+
+function pwChange(isRecovery){el.innerHTML=`<div class="authwrap"><div class="lg">${authHead('Set your own password')}
+<div class="note">Choose a new password of your own to continue — minimum 8 characters.</div>
+<label>New password</label><input id="np1" type="password">
+<label>Repeat it</label><input id="np2" type="password">
+<div id="npm"></div>
+<button class="pri" id="npb" style="width:100%">Save and continue</button></div></div>`;
+fixLogos(el);
+document.getElementById('npb').onclick=async()=>{
+const a=document.getElementById('np1').value,b=document.getElementById('np2').value,out=document.getElementById('npm');
+if(a.length<8){out.innerHTML='<div class="blk">At least 8 characters.</div>';return}
+if(a!==b){out.innerHTML='<div class="blk">The two entries do not match.</div>';return}
+const{error}=await pb.auth.updateUser({password:a,data:{must_change_password:false}});
+if(error){out.innerHTML=`<div class="blk">${E(error.message)}</div>`;return}
+try{await hd.rpc('log_password_change',{p_context:isRecovery?'recovery':'first_login'})}catch(e){}
+toast('Password set — welcome');isRecovery?boot():firstUsername()}}
+async function firstUsername(){let cur='';
+try{const{data:{user}}=await pb.auth.getUser();if(user){const{data:un}=await hd.from('usernames').select('username').eq('user_id',user.id).maybeSingle();cur=un?.username||''}}catch(e){}
+if(!cur){return boot()}
+el.innerHTML=`<div class="authwrap"><div class="lg">${authHead('Choose your username')}
+<div class="note">This is what you type to sign in. We set one from your name — keep it, or pick your own. 3–20 lowercase letters, numbers or dots.</div>
+<label>Username</label><input id="fu" value="${E(cur)}" autocomplete="username" spellcheck="false">
+<div id="fum"></div>
+<button class="pri" id="fub" style="width:100%">Save & continue</button>
+<div class="lg-foot"><a id="fusk">Keep @${E(cur)} and continue</a></div></div></div>`;
+fixLogos(el);
+{const _fu=document.getElementById('fu'),_fb=document.getElementById('fub');
+const _sy=()=>{const v=(_fu.value||'').trim().toLowerCase();_fb.disabled=(!v||v===cur);_fb.style.opacity=_fb.disabled?'.55':'';_fb.title=_fb.disabled?'Type a different username to save one, or use \u201cKeep @'+cur+' and continue\u201d below':''};
+_fu.addEventListener('input',_sy);_sy();}
+document.getElementById('fusk').onclick=()=>firstNotifs();
+document.getElementById('fub').onclick=async()=>{
+const v=document.getElementById('fu').value.trim().toLowerCase(),out=document.getElementById('fum');
+if(!v||v===cur){return firstNotifs()}
+if(!/^[a-z0-9._]{3,20}$/.test(v)){out.innerHTML='<div class="blk">3–20 lowercase letters, numbers or dots.</div>';return}
+const{data:ok}=await hd.rpc('username_available',{p_username:v});
+if(ok===false){out.innerHTML='<div class="blk">That username is already taken — try another.</div>';return}
+const{error}=await hd.rpc('set_own_username',{p_username:v});
+if(error){out.innerHTML=`<div class="blk">${E(error.message)}</div>`;return}
+toast('Username set');firstNotifs()}}
+async function firstNotifs(){
+if(!_FNDEV){_FNDEV=1;
+const _sup=('Notification' in window)&&('serviceWorker' in navigator)&&('PushManager' in window);
+const _already=_sup&&Notification.permission==='granted';
+if(_sup&&!_already&&Notification.permission!=='denied'){
+el.innerHTML=`<div class="authwrap"><div class="lg">${authHead('Turn on notifications')}
+<div class="note">Let the portal tell you when mail is assigned to you, something is sent back, or a reply lands \u2014 even when this tab is closed. You choose which events on the next screen.</div>
+<button class="pri" id="fd_on" style="width:100%">Turn on notifications</button>
+<div class="lg-foot"><a id="fd_skip">Not now \u2014 I will decide later</a></div></div></div>`;
+fixLogos(el);
+document.getElementById('fd_skip').onclick=()=>firstNotifs();
+document.getElementById('fd_on').onclick=async()=>{const _b=document.getElementById('fd_on');_b.disabled=1;_b.textContent='Just a moment\u2026';
+try{await notifEnable()}catch(e){}
+firstNotifs()};
+return}}
+el.innerHTML=`<div class="authwrap"><div class="lg">${authHead('Choose your alerts')}
+<div class="note">Pick which events notify you. You can change these anytime in <b>Settings → Your preferences</b>.</div>
+<div id="fn_ev" style="display:flex;flex-direction:column;gap:8px;margin:6px 0 16px;text-align:left">${[['assigned','Mail or tickets assigned to me'],['sendback','Send-backs & document-pool items'],['approvals','Approvals waiting (if you approve sends)'],['support','Replies on help tickets I raise']].map(([k,l])=>`<label style="display:flex;gap:10px;align-items:flex-start;flex-wrap:nowrap;cursor:pointer;border:1px solid var(--c-border);border-radius:9px;padding:10px 12px"><input type="checkbox" data-ev="${k}" checked style="flex:0 0 auto;width:16px;height:16px;min-width:16px;padding:0;margin:1px 0 0"><span style="flex:1 1 auto;min-width:0">${l}</span></label>`).join('')}</div>
+<button class="pri" id="fn_go" style="width:100%">Continue</button>
+<div class="lg-foot"><a id="fn_dev">Also turn on notifications on this device</a></div></div></div>`;
+fixLogos(el);
+const dv=document.getElementById('fn_dev');if(dv)dv.onclick=async()=>{try{await notifEnable()}catch(e){}};
+document.getElementById('fn_go').onclick=async()=>{
+const gb=document.getElementById('fn_go');gb.disabled=1;gb.textContent='Saving…';
+try{for(const cb of document.querySelectorAll('#fn_ev input[data-ev]')){if(!cb.checked)await hd.rpc('set_notif_pref',{p_event:cb.dataset.ev,p_enabled:false})}}catch(e){}
+firstAvatar()}}
+async function firstAvatar(){
+el.innerHTML=`<div class="authwrap"><div class="lg">${authHead('Add a profile picture')}
+<div class="note">Optional. It shows next to your name on tickets and replies so the team can tell at a glance whose work is whose.</div>
+<div id="fa_prev" style="display:flex;justify-content:center;margin:6px 0 14px">${avat(me&&me.name||'')}</div>
+<button class="pri" id="fa_pick" style="width:100%">Choose a photo</button>
+<div class="lg-foot"><a id="fa_skip">Skip for now</a></div></div></div>`;
+fixLogos(el);
+document.getElementById('fa_skip').onclick=()=>boot();
+document.getElementById('fa_pick').onclick=async()=>{
+const _b=document.getElementById('fa_pick');
+const url=await avatarPick();if(!url)return;
+_b.disabled=1;_b.textContent='Saving\u2026';
+const{error}=await hd.rpc('set_avatar',{p_url:url});
+if(error){_b.disabled=0;_b.textContent='Choose a photo';toast(error.message,true);return}
+if(me)me.avatar=url;
+const pv=document.getElementById('fa_prev');if(pv)pv.innerHTML=`<img src="${url}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover">`;
+_b.textContent='Saved \u2713';
+setTimeout(()=>boot(),700)}}
+function login(err){el.innerHTML=`<div class="authwrap"><div class="lg">${authHead('Sign in to continue')}
+${err?`<div class="blk">${E(err)}</div>`:''}
+<label>Username</label><input id="e" placeholder="your.username" autocomplete="username">
+<label>Password</label><input id="p" type="password" placeholder="••••••••">
+<button class="pri" id="g" style="width:100%">Sign in</button>
+<div class="lg-foot">Sign in with your username · <a id="fp">Forgot password?</a></div>
+<div id="fpm"></div></div></div>`;
+const OFFMSG='Cannot reach the portal \u2014 you appear to be offline. Check your internet connection and try again.';
+const _isNet=e=>{const m=((e&&(e.message||e.error_description))||e||'')+'';
+return !navigator.onLine||/failed to fetch|fetch failed|networkerror|network error|load failed|timed ?out|timeout|err_internet|err_network|err_name_not_resolved|err_connection/i.test(m)};
+const resolveId=async v=>{v=v.trim().toLowerCase();if(!v)return{em:null};
+try{const{data,error}=await pb.rpc('username_login',{p_username:v});
+if(error)return{em:null,off:_isNet(error),msg:error.message};
+return{em:data||null}}catch(e){return{em:null,off:_isNet(e),msg:e&&e.message}}};
+const g=async()=>{
+const _b=document.getElementById('g');if(_b){_b.disabled=1;_b.textContent='Signing in…'}
+const r=await resolveId(document.getElementById('e').value);
+if(r.off){login(OFFMSG);return}
+if(r.msg){login('Could not reach the portal: '+r.msg);return}
+if(!r.em){login('No account with that username. Check the spelling.');return}
+try{const{error}=await pb.auth.signInWithPassword({email:r.em,password:document.getElementById('p').value});
+if(error){login(_isNet(error)?OFFMSG:error.message);return}
+boot()}catch(e){login(_isNet(e)?OFFMSG:((e&&e.message)||'Sign-in failed. Please try again.'))}};
+document.getElementById('g').onclick=g;
+document.getElementById('p').onkeydown=v=>{if(v.key==='Enter')g()};
+document.getElementById('fp').onclick=async()=>{
+const out=document.getElementById('fpm');
+const r=await resolveId(document.getElementById('e').value);
+if(r.off){out.innerHTML=`<div class="blk">${E(OFFMSG)}</div>`;return}
+if(!r.em){out.innerHTML='<div class="blk">Type your username or email above first, then click Forgot password.</div>';return}
+const{error}=await pb.auth.resetPasswordForEmail(r.em,{redirectTo:location.origin+location.pathname+'?type=recovery'});
+out.innerHTML=error?`<div class="blk">${E(_isNet(error)?OFFMSG:error.message)}</div>`
+:`<div class="note">Reset link sent to the mailbox on that account — open it from Gmail. It brings you back here to set a new password.</div>`};
+fixLogos(el)}
+
+function unameScreen(){el.innerHTML=`<div class="authwrap"><div class="lg">${authHead('Choose your username')}
+<div class="note">Pick a unique handle to sign in with — like Instagram or X. Lowercase letters, numbers, dots and
+underscores; 3 to 20 characters. This is what you will type instead of an email address.</div>
+<label>Username</label><input id="un" placeholder="e.g. ${E((me.name||'you').toLowerCase().split(/\s+/)[0].replace(/[^a-z0-9._]/g,'')||'you')}" autocomplete="off">
+<div id="unm" class="mu" style="margin:-6px 0 10px"></div>
+<button class="pri" id="unb" style="width:100%">Claim username</button></div></div>`;
+fixLogos(el);
+const un=document.getElementById('un'),out=document.getElementById('unm'),btn=document.getElementById('unb');
+let deb;un.oninput=()=>{clearTimeout(deb);const v=un.value.trim().toLowerCase();
+if(!v){out.textContent='';return}
+if(!/^[a-z0-9._]{3,20}$/.test(v)){out.textContent='3–20 characters: lowercase letters, numbers, dots, underscores.';return}
+deb=setTimeout(async()=>{const{data}=await hd.rpc('username_available',{p_username:v});
+out.textContent=data?`@${v} is available ✓`:`@${v} is taken — try another.`},300)};
+btn.onclick=async()=>{const v=un.value.trim().toLowerCase();
+if(!/^[a-z0-9._]{3,20}$/.test(v)){out.textContent='3–20 characters: lowercase letters, numbers, dots, underscores.';return}
+btn.disabled=1;
+const{error}=await hd.from('usernames').insert({user_id:me.id,tenant_id:me.tenant,username:v});
+btn.disabled=0;
+if(error){out.textContent=/uq_|duplicate|unique/i.test(error.message)?`@${v} is taken — try another.`:error.message;return}
+UNM=v;toast(`Welcome, @${v}`);go()}}
+
+const TABS=[['triage','Inbox'],['mine','My tickets'],['mymails','My mails'],['all','All tickets'],['support','Help tickets'],['myhelp','My requests'],
+['pool','Document pool'],['late','Late & at risk'],['resolved','Resolved'],['logs','Activity'],['drafts','Drafts'],['sent','Sent'],['archive','Archive'],['inbox','Settings']];
+const LOADING='<div class="ldg"><div class="sp"></div><span>Loading…</span></div>';
+function startLoad(){const t=document.getElementById('topbar');if(t){t.classList.add('on');t.style.width='72%'}}
+function endLoad(){const t=document.getElementById('topbar');if(t){t.style.width='100%';setTimeout(()=>{t.classList.remove('on');t.style.width='0'},280)}}
+function paintNav(){const nav=el.querySelector('aside nav');if(!nav)return;
+const NB={triage:NTRI,mine:NMINE,mymails:NMYM,all:NALL,support:NHELP,myhelp:NMYHELPO,pool:NPOOL,late:NLATE,resolved:NRES,drafts:NDR,sent:NSENT};
+nav.querySelectorAll('a').forEach(a=>{const n=NB[a.dataset.t];let bd=a.querySelector('.n');
+if(n){if(!bd){bd=document.createElement('span');bd.className='n';a.appendChild(bd)}bd.textContent=n}else if(bd)bd.remove()});
+const _mh=nav.querySelector('a[data-t="myhelp"]');if(_mh){let _ad=_mh.querySelector('.act');if(NMYACT>0){if(!_ad){_ad=document.createElement('span');_ad.className='act';_ad.title='Needs your response';_ad.style.color='#e0a800';_ad.style.marginLeft='4px';_ad.textContent='●';_mh.appendChild(_ad)}}else if(_ad)_ad.remove()}
+const _sh=nav.querySelector('a[data-t="support"]');if(_sh){let _sd=_sh.querySelector('.act');if(NHELPNEW>0){if(!_sd){_sd=document.createElement('span');_sd.className='act';_sd.title='New activity you have not opened yet';_sd.style.color='#e0a800';_sd.style.marginLeft='4px';_sd.textContent='●';_sh.appendChild(_sd)}}else if(_sd)_sd.remove()}
+const main=el.querySelector('main.mn');if(!main)return;let bn=main.querySelector('.ban');
+if(ban){if(!bn){bn=document.createElement('div');bn.className='ban';main.insertBefore(bn,main.querySelector('#m'))}bn.textContent=ban}else if(bn)bn.remove()}
+function shell(body){const cur=CM?(CM.id?'Edit draft':'New mail'):((TABS.find(t=>t[0]===tab)||[])[1]||'');
+const th=document.documentElement.dataset.theme;
+el.innerHTML=`<div class="layout"><aside>
+<div class="brand"><span class="lchip"><img class="skalogo" src="${RLOGO}" alt="Single Key Advisory"></span>
+<button class="newbtn" id="nm">✉ &nbsp;New mail</button></div>
+<nav>${(()=>{const NB={triage:NTRI,mine:NMINE,mymails:NMYM,all:NALL,support:NHELP,myhelp:NMYHELPO,pool:NPOOL,late:NLATE,resolved:NRES,drafts:NDR,sent:NSENT};
+return TABS.filter(([k])=>(k!=='logs'||FEAT.activity)&&(k!=='support'||me.platform)&&(k!=='myhelp'||(HIDEMYREQ?NMYHELPO>0:NMYHELP>0))&&(k!=='all'||FEAT.all_tickets)&&(k!=='mymails'||HASMM))
+.map(([k,l])=>`<a data-t="${k}" class="${!CM&&tab===k?'on':''}"><span>${l}</span>${NB[k]?`<span class="n">${NB[k]}</span>`:''}${k==='myhelp'&&NMYACT>0?`<span class="act" style="color:#e0a800;margin-left:4px" title="Needs your response">●</span>`:''}${k==='support'&&NHELPNEW>0?`<span class="act" style="color:#e0a800;margin-left:4px" title="New activity you have not opened yet">●</span>`:''}</a>`).join('')})()}</nav>
+<div class="sfoot"><div class="rw" style="gap:8px;align-items:center;min-width:0;flex:1">${me.avatar?`<img src="${E(me.avatar)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex:0 0 auto">`:''}<div style="min-width:0"><div class="who">${E(me.name)}</div><div>${UNM?'@'+E(UNM)+' · ':''}${E(me.label??'')}</div></div></div>
+<div><button id="rep" title="Report a problem with the portal — goes to the admin">🛟 Report issue</button><button id="o">Sign out</button></div></div>
+</aside><main class="mn">
+<div class="rw" style="justify-content:space-between;align-items:center;margin-bottom:12px"><div class="rw" style="gap:10px"><button id="sbt" class="gh" title="Show / hide sidebar">☰</button><h1>${E(cur)}</h1></div>${!CM?`<div class="rw" style="gap:8px"><button class="gh" id="guide" title="How to use this portal">❔ Guide</button>${tab==='triage'?'<button class="pri" id="syncnow" title="Pull new mail now">⟳ Sync now</button>':''}</div>`:''}</div>
+<div class="cmdbar" id="cmdbar" hidden><span id="cbctx" class="rw" style="gap:2px"></span></div>
+${ban?`<div class="ban">${E(ban)}</div>`:''}${supRepBanner()}<div id="m">${body}</div></main><div class="scrim" id="scrim"></div>${CM?'':'<button class="fab" id="fab" title="New mail" aria-label="New mail">✎</button>'}</div>`;
+el.querySelectorAll('nav a').forEach(b=>b.onclick=()=>{CM=null;tab=b.dataset.t;open=null;sel.clear();dsel.clear();F.q='';F.status='';F.source='';F.owner='';F.client='';F.tag='';F.priority='';F.att='';SSQ='';SSORT='recent';SRF='open';MSQ='';MSORT='recent';MHF='open';PENDRESOLVE=null;TRX=null;LRX=null;go()});
+document.getElementById('o').onclick=async()=>{await doSignOut('manual');login()};
+document.getElementById('nm').onclick=()=>{CM={};go()};
+document.getElementById('rep').onclick=supportModal;
+el.querySelectorAll('.suprep_x').forEach(b=>b.onclick=async()=>{const _id=b.dataset.id;SUPREP=SUPREP.filter(r=>r.id!==_id);const _n=el.querySelector('.ban[data-sr="'+_id+'"]');if(_n)_n.remove();try{await hd.rpc('dismiss_support_reply',{p_id:_id})}catch(e){}});
+el.querySelectorAll('.suprep_open').forEach(b=>b.onclick=()=>{const _id=b.dataset.id;NMYHELP=Math.max(NMYHELP,1);SROPEN=_id;SROPEN_TAB='myhelp';tab='myhelp';SUPREP=SUPREP.filter(r=>r.id!==_id);try{hd.rpc('dismiss_support_reply',{p_id:_id})}catch(e){}go()});
+{const _gb=document.getElementById('guide');if(_gb)_gb.onclick=()=>showGuide(false);}
+try{if(localStorage.getItem('ska.hd.sb')==='1')el.querySelector('.layout').classList.add('sbc')}catch(e){}
+document.getElementById('sbt').onclick=()=>{const l=el.querySelector('.layout');if(window.matchMedia('(max-width:640px)').matches){l.classList.toggle('dwr');return}const c=l.classList.toggle('sbc');try{localStorage.setItem('ska.hd.sb',c?'1':'0')}catch(e){}};
+{const _sc=document.getElementById('scrim');if(_sc)_sc.onclick=()=>{const l=el.querySelector('.layout');if(l)l.classList.remove('dwr')};
+const _fb=document.getElementById('fab');if(_fb)_fb.onclick=()=>{CM={};go()};}
+const _sn=document.getElementById('syncnow');if(_sn)_sn.onclick=()=>syncNow(_sn);
+fixLogos(el)}
+function cbCtx(m){let bar=document.getElementById('cmdbar');
+if(!bar){const _h=document.querySelector('main.mn h1'),_an=_h&&_h.closest('.rw')&&_h.closest('.rw').parentElement;
+bar=document.createElement('div');bar.className='cmdbar';bar.id='cmdbar';bar.hidden=true;bar.innerHTML='<span id="cbctx" class="rw" style="gap:2px"></span>';
+if(_an&&_an.parentElement)_an.parentElement.insertBefore(bar,_an.nextSibling);else (document.querySelector('main.mn')||document.body).appendChild(bar)}
+const ctx=bar.querySelector('#cbctx')||document.getElementById('cbctx');if(!ctx)return;
+if(!open||CM){ctx.innerHTML='';if(bar)bar.hidden=true;return}
+if(bar)bar.hidden=false;
+if(bar){const _hr=m&&m.querySelector&&m.querySelector('#read .rw'),_cx=_hr&&_hr.querySelector('#tk_x');
+if(_hr&&_cx){_hr.style.flexWrap='wrap';bar.style.cssText='margin:0 0 0 auto;flex:0 0 auto;box-shadow:none';if(_cx.previousElementSibling!==bar)_hr.insertBefore(bar,_cx)}
+else{bar.style.cssText='';const _fb=m&&m.querySelector&&m.querySelector('.fbar');if(_fb&&_fb.parentElement&&bar.previousElementSibling!==_fb){_fb.parentElement.insertBefore(bar,_fb.nextSibling)}}}
+const mineT=OPENT?.assignee_id===me.id;
+const done=['resolved','closed'].includes(OPENT?.status);
+ctx.innerHTML=`${!done?`<button id="cb_rep">↩ Reply</button>`:''}
+${!done&&!OPENT?.assignee_id?`<button id="cb_mine">👤 ${OPENT?.is_pool?'Claim':'Assign to me'}</button>`:''}
+${!done&&me.crm?`<button id="cb_urg">⚑ Urgent</button>`:''}
+${!done&&(me.crm||mineT)?`<button id="cb_pnd">${OPENT?.status==='pending'?'▶ Resume':'⏸ Pending'}</button>`:''}
+${(me.crm||mineT)?(done?`<button id="cb_reopen">↩ Reopen</button>`:`<span class="sep"></span><button id="cb_res">✓ Resolve</button>`):''}`;
+const q=id=>ctx.querySelector('#'+id);
+const rep=q('cb_rep');if(rep)rep.onclick=()=>{const ed=m.querySelector('#rp');
+if(ed){ed.scrollIntoView({behavior:'smooth',block:'center'});ed.focus()}};
+const mn=q('cb_mine');if(mn)mn.onclick=async()=>{
+let _due=OPENT?.due_at;
+if(!_due){let _mx=TSET?.deadline_max_months;if(_mx==null){try{const{data:_dd0}=await hd.from('tenant_settings').select('deadline_max_months').eq('tenant_id',me.tenant).maybeSingle();_mx=_dd0?.deadline_max_months}catch(e){}}_mx=_mx||6;
+const _mxd=new Date();_mxd.setMonth(_mxd.getMonth()+_mx);
+const d=await askDate({title:'Set a deadline',message:'Choose the date this should be completed by — a deadline is required to take it on.',min:toDate(new Date()),max:toDate(_mxd),info:'You can set a deadline up to '+_mx+' month'+(_mx===1?'':'s')+' ahead. Need longer? An admin can raise this limit under Settings → Mailboxes → Retention.'});
+if(!d)return;_due=dISO(d)}
+const{error}=OPENT?.is_pool
+?await hd.rpc('claim_ticket',{p_ticket_id:open.i})
+:await hd.rpc('assign_ticket',{p_ticket_id:open.i,p_assignee:me.id,p_reason:null});
+if(error){toast(error.message,true);return}
+if(!OPENT?.due_at)await hd.from('tickets').update({due_at:_due}).eq('id',open.i);
+toast(OPENT?.is_pool?'Claimed — it is yours now, and stays in the pool under Claimed':'Assigned to you');go(true)};
+const ug=q('cb_urg');if(ug)ug.onclick=async()=>{const{error}=await hd.from('tickets').update({priority:1}).eq('id',open.i);
+error?toast(error.message,true):(toast('Marked Urgent'),go(true))};
+const pn=q('cb_pnd');if(pn)pn.onclick=async()=>{
+const nv=OPENT?.status==='pending'?'open':'pending';
+const{error}=await hd.from('tickets').update({status:nv}).eq('id',open.i);
+error?toast(error.message,true):(toast(nv==='pending'?'Marked pending — find it under My tickets → Pending':'Resumed — back in Active'),go(true))};
+const rs=q('cb_res');if(rs)rs.onclick=async()=>{const{error}=await hd.from('tickets').update({status:'resolved',closed_at:new Date().toISOString()}).eq('id',open.i);
+error?toast(error.message,true):(toast('Resolved — moved to the Resolved tab'),open=null,go(true))};
+const ro=q('cb_reopen');if(ro)ro.onclick=async()=>{const{error}=await hd.from('tickets').update({status:'open',closed_at:null}).eq('id',open.i);error?toast(error.message,true):(toast('Reopened'),go(true))}}
+
+// ---------- rich text editor ----------
+const RTE_FONTS=['Arial','Georgia','Tahoma','Verdana','Courier New','Trebuchet MS','Times New Roman'];
+const RTE_SIZES=[['2','Small'],['3','Normal'],['4','Large'],['5','X-Large'],['6','Huge']];
+function rteHtml(id,initial){return `<div class="rteb" data-for="${id}">
+<select class="rf" title="Font"><option value="">Font</option>${RTE_FONTS.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
+<select class="rs" title="Size"><option value="">Size</option>${RTE_SIZES.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+<button data-c="bold" title="Bold"><b>B</b></button>
+<button data-c="italic" title="Italic"><i>I</i></button>
+<button data-c="underline" title="Underline"><u>U</u></button>
+<button data-c="strikeThrough" title="Strikethrough"><s>S</s></button>
+<label title="Text colour" style="display:inline-flex;align-items:center">A<input type="color" class="rc" value="#242424"></label>
+<label title="Highlight" style="display:inline-flex;align-items:center">🖍<input type="color" class="rh" value="#fff2a8"></label>
+<button data-c="insertUnorderedList" title="Bullets">•≡</button>
+<button data-c="insertOrderedList" title="Numbered">1≡</button>
+<button data-c="justifyLeft" title="Align left">⯇</button>
+<button data-c="justifyCenter" title="Align center">≡</button>
+<button data-c="link" title="Link">🔗</button>
+<button data-c="removeFormat" title="Clear formatting">⌫</button></div>
+<div class="rte" id="${id}" contenteditable="true">${initial??''}</div>`}
+function wireRte(scope){scope.querySelectorAll('.rteb').forEach(tb=>{
+if(tb.dataset.done)return;tb.dataset.done=1;
+const ed=()=>scope.querySelector('#'+tb.dataset.for);
+tb.querySelectorAll('button').forEach(b=>b.onclick=async ev=>{ev.preventDefault();ed().focus();
+if(b.dataset.c==='link'){const _s=window.getSelection();const _r=_s&&_s.rangeCount?_s.getRangeAt(0).cloneRange():null;const u=await ask('Paste or type the link address','',{title:'Insert link',okText:'Insert'});if(u){ed().focus();if(_r){_s.removeAllRanges();_s.addRange(_r)}document.execCommand('createLink',false,u)}}
+else document.execCommand(b.dataset.c,false,null)});
+const rf=tb.querySelector('.rf');if(rf)rf.onchange=()=>{ed().focus();if(rf.value)document.execCommand('fontName',false,rf.value);rf.value=''};
+const rs=tb.querySelector('.rs');if(rs)rs.onchange=()=>{ed().focus();if(rs.value)document.execCommand('fontSize',false,rs.value);rs.value=''};
+const rc=tb.querySelector('.rc');if(rc)rc.oninput=()=>{ed().focus();document.execCommand('foreColor',false,rc.value)};
+const rh=tb.querySelector('.rh');if(rh)rh.oninput=()=>{ed().focus();document.execCommand('hiliteColor',false,rh.value)||document.execCommand('backColor',false,rh.value)}})}
+const sigTail=()=>SIG.html?`<br><br><div>--</div>${SIG.html}`:'';
+function edOut(scope,id){const ed=scope.querySelector('#'+id);
+return{html:ed.innerHTML,text:ed.innerText.replace(/\n{3,}/g,'\n\n').trim()}}
+
+// ---------- signature modal ----------
+function sigModal(){const o=document.createElement('div');o.className='ovl';
+o.innerHTML=`<div class="box"><h2 style="margin-bottom:12px">Signature ${iInfo('Your signature is <b>personal to you</b> — it belongs to your account, not to a mailbox. Whichever mailbox you send from, this same signature is added, and every teammate keeps their own. It never appears on anyone else’s mail.')}</h2>
+<div class="mu" style="margin-bottom:6px">Appended automatically to every reply and new mail. Highlight, colours, fonts and sizes are all available. Leave empty for none.</div>
+${rteHtml('sged',SIG.html)}
+<div class="rw" style="margin-top:14px;justify-content:flex-end">
+<button class="gh" id="sgx">Cancel</button><button class="pri" id="sgs">Save</button></div></div>`;
+document.body.appendChild(o);wireRte(o);
+o.querySelector('#sgx').onclick=()=>{applyFont(UFONT);o.remove()};
+o.onclick=e=>{if(e.target===o){applyFont(UFONT);o.remove()}};
+o.querySelector('#sgs').onclick=async()=>{
+const{html,text}=edOut(o,'sged');
+const{error}=await hd.from('user_prefs').upsert({user_id:me.id,signature_html:html,signature_text:text,font_family:UFONT||null,updated_at:new Date().toISOString()});
+if(error){toast(error.message,true);return}
+SIG={html,text};toast('Saved');o.remove()}}
+
+// ---------- filters ----------
+function fbar(rows,dis,sortHtml){const _fact=!!((F.q&&F.q.trim())||F.status||F.source||F.owner||F.inbox||F.client||F.tag||F.priority||F.att);const inbs=[...new Set([...INB.map(i=>i.email_address),...rows.map(t=>t.inbox)].filter(Boolean))].sort();
+const cls=[...new Set(rows.map(t=>t.client_name).filter(Boolean))].sort();
+const has=k=>!dis?.includes(k);
+return `<div class="fbar">
+<input type="search" id="fq" placeholder="Search subject, sender, client…" value="${E(F.q)}">
+${has('status')?`<select id="fst"><option value="">Status: any</option>${['open','pending','resolved','closed'].map(s=>`<option ${F.status===s?'selected':''}>${s}</option>`).join('')}</select>`:''}
+${has('source')?`<select id="fsrc"><option value="">Source: any</option><option value="email" ${F.source==='email'?'selected':''}>Email</option><option value="portal" ${F.source==='portal'?'selected':''}>Client portal</option></select>`:''}
+${has('owner')?`<select id="fow"><option value="">Owner: any</option><option value="unassigned" ${F.owner==='unassigned'?'selected':''}>Unassigned</option><option value="pool" ${F.owner==='pool'?'selected':''}>Pool</option>${ppl.map(p=>`<option value="${p.id}" ${F.owner===p.id?'selected':''}>${E(p.n)}</option>`).join('')}</select>`:''}
+${has('priority')?`<select id="fpr"><option value="">Priority: any</option>${[[1,'Urgent'],[2,'High'],[3,'Normal']].map(([v,l])=>`<option value="${v}" ${String(F.priority)===String(v)?'selected':''}>${l}</option>`).join('')}</select>`:''}
+${has('att')?`<select id="fatt"><option value="">Attachments: any</option><option value="1" ${F.att==='1'?'selected':''}>With attachment</option><option value="0" ${F.att==='0'?'selected':''}>Without attachment</option></select>`:''}
+${(me.crm?INB.length:MYVIS.size)>1?`<select id="fin"><option value="">Mailbox: any</option>${inbs.map(i=>`<option ${F.inbox===i?'selected':''}>${E(i)}</option>`).join('')}</select>`:''}
+<select id="fcl" title="Search by client group, a person's full name, or a company/firm — all show that group's mail"><option value="">Client: any</option><option value="__all__" ${F.client==='__all__'?'selected':''}>All clients</option><option value="__vip__" ${F.client==='__vip__'?'selected':''}>⭐ VIP clients</option><option value="__none__" ${F.client==='__none__'?'selected':''}>Non-client (no client)</option>${(CLOPT&&CLOPT.length?CLOPT:cls.map(c=>({v:c,label:c}))).map(o=>`<option value="${E(o.v)}" ${(F.client===o.v&&o.label===o.v)?'selected':''}>${E(o.label)}</option>`).join('')}</select>
+${TAGS.length?`<select id="ftg"><option value="">Tag: any</option>${TAGS.map(t=>`<option ${F.tag===t.name?'selected':''}>${E(t.name)}</option>`).join('')}</select>`:''}
+${_fact?`<button type="button" id="fclr" class="gh" title="Clear all filters" style="border-color:var(--c-accent)">✕ Clear filters</button>`:''}${sortHtml||''}<span class="mu" id="fct" style="margin-left:auto;white-space:nowrap"></span></div>`}
+let SRCHGEN=0;
+function wireF(m,rr){const q=m.querySelector('#fq');if(!q)return;
+let sdeb;
+q.oninput=()=>{F.q=q.value;rr();
+// Server-side search: after a short pause, search the WHOLE mailbox/ticket store,
+// not just the rows already loaded on this page.
+clearTimeout(sdeb);sdeb=setTimeout(async()=>{
+const s=F.q.trim().replace(/[%,()*]/g,'');
+const _sg=++SRCHGEN;
+if(s.length<2){if(TRX||LRX){TRX=null;LRX=null;rr()}return}
+try{
+if(tab==='triage'||tab==='mymails'){
+const{data:sr}=await hd.from(tab==='mymails'?'v_my_mails':'v_crm_triage').select('*')
+.or(`subject.ilike.%${s}%,from_email.ilike.%${s}%,from_name.ilike.%${s}%,client_name.ilike.%${s}%`)
+.order('sent_at',{ascending:false}).limit(400);
+if(_sg!==SRCHGEN)return;TRX=sr??[];rr()}
+else{
+const tn=/^#?(\d{1,8})$/.exec(s);
+const jobs=[
+hd.from('v_ticket_workspace').select('*').or(`subject.ilike.%${s}%,client_name.ilike.%${s}%,assignee_name.ilike.%${s}%`).limit(200),
+hd.from('messages').select('ticket_id').or(`from_email.ilike.%${s}%,from_name.ilike.%${s}%`).not('ticket_id','is',null).limit(300)];
+if(tn)jobs.push(hd.from('v_ticket_workspace').select('*').eq('ticket_no',+tn[1]).limit(5));
+const[a,b,c0]=await Promise.all(jobs);
+const ids=[...new Set((b.data??[]).map(x=>x.ticket_id).filter(Boolean))].slice(0,150);
+const{data:c}=ids.length?await hd.from('v_ticket_workspace').select('*').in('id',ids):{data:[]};
+const seen=new Set();
+LRX=[...(a.data??[]),...(c??[]),...((c0?.data)??[])].filter(t=>!seen.has(t.id)&&(seen.add(t.id),true));
+rr()}
+}catch(e){}},350)};
+[['fst','status'],['fsrc','source'],['fow','owner'],['fin','inbox'],['fcl','client'],['ftg','tag'],['fpr','priority'],['fatt','att']].forEach(([id,k])=>{
+const x=m.querySelector('#'+id);if(x)x.onchange=()=>{F[k]=x.value;rr()}});
+const _fc=m.querySelector('#fclr');if(_fc)_fc.onclick=()=>{F.q='';F.status='';F.source='';F.owner='';F.inbox='';F.client='';F.tag='';F.priority='';F.att='';LF='all';go(true)};}
+function applyF(rows,opts){const q=opts?.skipQ?'':F.q.trim().toLowerCase();
+return rows.filter(t=>{
+if(F.status&&t.status!==F.status)return false;
+if(F.priority&&String(t.priority??3)!==String(F.priority))return false;
+if(F.source&&t.source!==F.source)return false;
+if(F.owner==='unassigned'&&(t.assignee_id||t.is_pool))return false;
+if(F.owner==='pool'&&!t.is_pool)return false;
+if(F.owner&&F.owner!=='unassigned'&&F.owner!=='pool'&&t.assignee_id!==F.owner)return false;
+if(F.inbox&&t.inbox!==F.inbox)return false;
+if(F.client==='__vip__'){if(!(t.client_name&&VIPS.has(t.client_name)))return false}else if(F.client==='__all__'){if(!t.client_name)return false}else if(F.client==='__none__'){if(t.client_name)return false}else if(F.client&&t.client_name!==F.client)return false;
+if(F.tag&&!((EMTAG[(t.from_email||'').toLowerCase()])||[]).includes(F.tag))return false;
+if(q&&!((t.subject??'')+' '+(t.client_name??'')+' '+(t.assignee_name??'')+' '+(t.from_email??'')+' '+(t.ticket_no??'')).toLowerCase().includes(q))return false;
+return true})}
+
+// ---------- outlook split list ----------
+let LR=[];
+function _lq(s){let q=hd.from('v_ticket_workspace').select('*');
+if(s==='mine')q=q.eq('assignee_id',me.id);if(s==='pool')q=q.eq('is_pool',true);
+if(s==='late')q=q.in('health',['breached','at_risk']);
+else if(s==='resolved')q=q.in('status',['resolved','closed']).gte('closed_at',new Date(Date.now()-((RET?.resolved_visible_days??30)*864e5)).toISOString());
+else q=q.not('status','in','("closed","resolved")');
+return q.order(s==='resolved'?'closed_at':'opened_at',{ascending:false})}
+async function listView(s){LRX=null;
+const{data,error}=await _lq(s).range(0,199);
+if(error)return `<div class="e">${E(error.message)}</div>`;
+LR=data??[];LMORE=((data??[]).length===200);
+let poolSb='';
+if(s==='pool'){try{const{data:_sb}=await hd.rpc('my_sendbacks');const PB=(_sb||[]).filter(x=>x.to_pool);
+if(PB.length)poolSb=`<div class="card" style="border-color:var(--c-warn-tx)"><h2 style="margin-bottom:6px">Sent back to the pool (${PB.length})</h2>
+<div class="mu" style="margin-bottom:4px">These were claimed from the pool and the person returned them with a reason. They are back in the pool below, waiting to be re-claimed.</div>
+${PB.map(x=>`<div style="padding:7px 0;border-top:1px solid var(--c-border)">
+<b class="sbx" data-id="${x.id}" title="Dismiss" style="cursor:pointer;float:right;color:var(--c-faint)">✕</b>
+<b>${E(x.subject||'(no subject)')}</b> <span class="mu">#${x.ticket_no??'?'}</span>
+<div class="mu">“${E(x.remark)}” — ${x.assigned_by?(x.assigned_by===x.sent_back_by?'self-claimed from the pool, ':'assigned by '+E(uName(x.assigned_by))+', '):''}sent back by ${E(uName(x.sent_back_by))} · ${A(x.created_at)}</div></div>`).join('')}</div>`;}catch(e){}}
+return poolSb+fbar(LR,(s==='mine'||s==='pool')?['status','owner','att']:['status','att'],`<label>Sort <select id="lsort"${tab==='resolved'?' disabled title="Resolved is always listed newest-resolved first"':''}>${[['newest','Latest activity'],['oldest','Oldest first'],['due','Deadline soonest']].map(([v,l])=>`<option value="${v}" ${LSORT===v?'selected':''}>${l}</option>`).join('')}</select></label>`)+`<div class="split"><div class="mlist" id="mlist"></div>
+<div class="mread" id="read"><div class="e">Select a mail on the left to read it here.</div></div></div>`}
+function renderList(m){
+const scope=t=>tab==='mine'?(t.assignee_id===me.id&&!['resolved','closed'].includes(t.status))
+:tab==='pool'?t.is_pool
+:tab==='late'?['breached','at_risk'].includes(t.health)
+:tab==='resolved'?['resolved','closed'].includes(t.status)
+:!['resolved','closed'].includes(t.status);
+let base=applyF(LRX?LRX.filter(scope):LR,{skipQ:!!LRX});
+const showP=tab!=='resolved';let lf=LF;if(!showP&&lf==='pending')lf='all';if(tab!=='pool'&&(lf==='claimed'||lf==='toclaim'))lf='all';
+const isPool=tab==='pool',uncl=t=>!t.assignee_id;
+const cliN=base.filter(t=>t.client_name&&(!isPool||uncl(t))).length,othN=base.filter(t=>!t.client_name&&(!isPool||uncl(t))).length,penN=base.filter(t=>t.status==='pending'&&(!isPool||uncl(t))).length,claN=base.filter(t=>t.assignee_id).length,tclN=base.filter(t=>!t.assignee_id).length,allN=base.length;
+if(lf==='clients')base=base.filter(t=>t.client_name&&(!isPool||uncl(t)));
+else if(lf==='other')base=base.filter(t=>!t.client_name&&(!isPool||uncl(t)));
+else if(lf==='pending')base=base.filter(t=>t.status==='pending'&&(!isPool||uncl(t)));
+else if(lf==='claimed')base=base.filter(t=>t.assignee_id);
+else if(lf==='toclaim')base=base.filter(t=>!t.assignee_id);
+const _lsf={newest:(a,b)=>(+new Date(b.last_message_at??b.opened_at))-(+new Date(a.last_message_at??a.opened_at)),oldest:(a,b)=>(+new Date(a.last_message_at??a.opened_at))-(+new Date(b.last_message_at??b.opened_at)),due:(a,b)=>{const av=a.due_at?+new Date(a.due_at):Infinity,bv=b.due_at?+new Date(b.due_at):Infinity;return(av-bv)||((+new Date(b.last_message_at??b.opened_at))-(+new Date(a.last_message_at??a.opened_at)))}}[LSORT];
+const rows=tab==='resolved'
+?base.sort((a,b)=>(+new Date(b.closed_at??b.opened_at))-(+new Date(a.closed_at??a.opened_at)))
+:base.sort(_lsf||((a,b)=>(+new Date(b.last_message_at??b.opened_at))-(+new Date(a.last_message_at??a.opened_at))));
+const ct=m.querySelector('#fct');if(ct)ct.textContent=`${rows.length} shown · ${(LRX??LR).length} loaded ${LRX?'(searched everywhere)':tab==='resolved'?'(latest resolved first)':LSORT==='oldest'?'(oldest first)':LSORT==='due'?'(deadline soonest)':'(latest activity first)'}`;
+const lb=m.querySelector('#mlist');if(!lb)return;
+const subs=[['clients','Clients',cliN]].concat(showP?[['pending','⏸ Pending',penN]]:[]).concat([['other','Other',othN]]).concat(isPool?[['toclaim','\u2295 To claim',tclN],['claimed','\u2713 Claimed',claN]]:[]).concat([['all','All',allN]]);
+const ftabs=`<div class="ftabs">${subs.map(([k,l,n])=>`<b class="${lf===k?'on':''}" data-lf="${k}">${l}${n?` (${n})`:''}</b>`).join('')}</div>`;
+if(!rows.length){lb.innerHTML=ftabs+'<div class="e">Nothing matches.</div>'}
+else{let g='';
+lb.innerHTML=ftabs+rows.map(t=>{const dg=dayGrp(tab==='resolved'?(t.closed_at??t.opened_at):(t.last_message_at??t.opened_at));
+const hdr=dg!==g?`<div class="dgrp">${dg}</div>`:'';g=dg;
+const who=t.client_name||t.counterparty_name||t.assignee_name||t.source_label;
+const _asg=t.is_pool?(t.assignee_name?'\u2713 '+t.assignee_name:'\u2295 to claim'):(t.assignee_name||'unassigned');
+const _asgU=!t.is_pool&&!t.assignee_name;
+const un=!SEENT.has(t.id);
+const vip=t.client_name&&VIPS.has(t.client_name);
+return hdr+`<div class="lrow ${open?.i===t.id?'on':''} ${un?'un':''} ${vip?'vip':''}" data-i="${t.id}" data-h="${t.thread_id??''}" style="display:flex;gap:10px">
+${avat(who)}<div style="flex:1;min-width:0">
+<div class="l1"><b style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${E(who)}</b><span class="rw" style="flex:0 0 auto;gap:7px;align-items:center"><span class="mu" title="${_asgU?'Nobody has claimed this yet':'Assigned to '+E(t.assignee_name||'')}" style="font-size:11px;padding:1px 7px;border:1px solid var(--c-border);border-radius:999px;white-space:nowrap;${_asgU?'opacity:.75':''}">${E(_asg)}</span><span class="mu">${A(t.last_message_at??t.opened_at)}</span></span></div>
+<div class="sj">${E(t.subject)}</div>
+<div class="sn">#${t.ticket_no} · ${E(t.inbox??'')}${t.is_pool?' · pool':''}${(t.client_name&&t.counterparty_name)?' · '+E(t.counterparty_name):''}${tab==='resolved'&&t.closed_at?' · resolved '+A(t.closed_at):''}</div>
+<div style="margin-top:3px">${vip?'<span class="pill vip">⭐ VIP</span>':''}${t.status==='pending'?'<span class="pill w">⏸ pending</span>':''}${priPill(t.priority)}${t.health==='breached'?'<span class="pill o">past due</span>':t.health==='at_risk'?'<span class="pill w">at risk</span>':''}${t.due_at&&tab!=='resolved'?`<span class="pill">due ${A(t.due_at)}</span>`:''}</div>
+</div></div>`}).join('')+((LMORE&&!LRX)?`<div style="padding:12px;text-align:center"><button class="gh" id="lmore">Load 200 more</button></div>`:'')}
+lb.querySelectorAll('.ftabs b[data-lf]').forEach(b=>b.onclick=()=>{LF=b.dataset.lf;renderList(m)});
+const _lmb=lb.querySelector('#lmore');if(_lmb)_lmb.onclick=async()=>{if(LBUSY)return;LBUSY=true;_lmb.disabled=true;_lmb.textContent='Loading\u2026';
+const{data:_ld,error:_le}=await _lq(tab).range(LR.length,LR.length+199);
+LBUSY=false;
+if(_le){_lmb.disabled=false;_lmb.textContent='Load 200 more';toast(_le.message,true);return}
+const _nw=_ld??[],_sn=new Set(LR.map(x=>x.id));
+LR=LR.concat(_nw.filter(x=>!_sn.has(x.id)));LMORE=(_nw.length===200);renderList(m)};
+lb.querySelectorAll('.lrow').forEach(r=>r.onclick=async()=>{
+open={i:r.dataset.i,h:r.dataset.h||null};const _lg=++LGEN;
+SEENT.add(r.dataset.i);r.classList.remove('un');
+lb.querySelectorAll('.lrow').forEach(x=>x.classList.toggle('on',x===r));
+const rd=m.querySelector('#read');rd.innerHTML='<div class="e">Loading…</div>';
+const _lhtml=await oneView(open.i,open.h);
+if(_lg!==LGEN)return;
+rd.innerHTML=_lhtml;
+wireTicket(m);hydrateMail(rd);wireChips(rd);wireRte(rd);cbCtx(m)})}
+
+// ---------- triage ----------
+let TR=[],TRO=null,TROGEN=0,LGEN=0,LMORE=false,LBUSY=false;
+async function triageView(my){TRO=null;TRX=null;MYMODE=!!my;const SRC=my?'v_my_mails':'v_crm_triage';
+const P=[hd.from(SRC).select('*').order('sent_at',{ascending:TSORT!=='newest'}).range(0,399)];
+if(!my)P.push(hd.from('pending_approvals').select('*').eq('status','pending').order('created_at',{ascending:true}).limit(100),hd.rpc('my_sendbacks'),hd.from('v_crm_triage_threads').select('thread_id',{count:'exact',head:true}));
+const R=await Promise.all(P);const{data,error}=R[0];
+if(error)return `<div class="e">${E(error.message)}</div>`;
+TR=data??[];
+if(!my){PEND=R[1].data??[];SB=R[2].data??[];if(typeof R[3]?.count==='number')NTRI=R[3].count;}else{PEND=[];SB=[]}
+const iAppr=me.crm||_aprs().indexOf(me.id)>-1;
+const apCard=(iAppr&&PEND.length)?`<div class="card" style="border-color:var(--c-accent)"><h2 style="margin-bottom:6px">Waiting for your approval (${PEND.length})</h2>
+<div class="mu" style="margin-bottom:4px">Requests from members \u2014 <b>nothing has happened yet</b>. The mail is still sitting in Inbox, and a held send has not gone out. <b>Approve</b> applies the action; <b>Reject</b> discards the request and leaves everything as it is.</div>
+${PEND.map(p=>`<div class="rw" style="padding:7px 0;border-top:1px solid var(--c-border)">
+<span class="${p.thread_id?'pa_sub':''}" data-th="${E(p.thread_id||'')}" ${p.thread_id?'title="Open this conversation"':''} style="flex:1;min-width:180px${p.thread_id?';cursor:pointer':''}">${p.kind==='block_sender'?'🚫 Block <b>'+E(p.sender_email||'?')+'</b>'+(p.detail==='team'?' <span class="mu">(team-only)</span>':''):p.kind==='send_outbound'?'✉️ Send “'+E(p.subject||'(no subject)')+'” to <b>'+E(p.detail||'?')+'</b>':'Ignore "'+E(p.subject||'(no subject)')+'"'}
+<span class="mu">— ${(p.sender_email&&p.kind!=='block_sender')?'from '+E(p.sender_email)+' · ':''}asked by ${E(uName(p.requested_by))} ${A(p.created_at)}</span></span>
+${p.thread_id?`<button class="gh pa_open" data-th="${E(p.thread_id)}" title="Open this conversation below">✉ Open mail</button>`:''}<button class="pri pa_ok" data-id="${p.id}">Approve</button><button class="gh pa_no" data-id="${p.id}">Reject</button></div>`).join('')}</div>`:'';
+const _SBI=SB.filter(s=>!s.to_pool);const sbCard=(me.crm&&_SBI.length)?`<div class="card" style="border-color:var(--c-warn-tx)"><h2 style="margin-bottom:6px">Sent back by assignees (${_SBI.length})</h2>
+<div class="mu" style="margin-bottom:4px">These were assigned, and the assignee returned them with a reason. Their mails are back in the list below, waiting to be re-sorted.</div>
+${_SBI.map(s=>`<div style="padding:7px 0;border-top:1px solid var(--c-border)">
+<b class="sbx" data-id="${s.id}" title="Dismiss" style="cursor:pointer;float:right;color:var(--c-faint)">✕</b>
+<b>${E(s.subject||'(no subject)')}</b> <span class="mu">#${s.ticket_no??'?'}</span>
+<div class="mu">“${E(s.remark)}” — ${s.assigned_by?(s.assigned_by===s.sent_back_by?'self-claimed from the pool, ':'assigned by '+E(uName(s.assigned_by))+', '):''}sent back by ${E(uName(s.sent_back_by))} · ${A(s.created_at)}</div></div>`).join('')}</div>`:'';
+const BANNER=my?`<div class="card" style="border-color:var(--c-accent)"><b>🔒 Restricted mail — only you and a chosen few can see these</b><div class="mu" style="margin-top:4px">These come from senders an admin set to “Only show to” a selected group; they are kept out of the shared Inbox. Anything you ticket from here stays visible only to the same people.</div></div>`:'';
+if(!TR.length)return apCard+sbCard+BANNER+`<div class="e">${my?'No restricted mail waiting for you right now.':'Nothing waiting to be sorted.'}</div>`;
+const NOTE=my?'':`<div class="note">Nothing becomes a ticket on its own — every conversation waits here until someone tags it
+to a person or the pool. A whole thread is <b>one</b> row; open it, then tag it on the right — every mail in it
+is sorted at once. Unread mail is bold.${(_needAppr())?` Ignoring first goes to <b>${E(_aprs().map(uName).join(', '))}</b> for approval.`:''}</div>`;
+return apCard+sbCard+BANNER+NOTE+
+
+fbar(TR,['status','source','owner','priority'],`<label>Sort <select id="tsort">${[['oldest','Oldest first'],['newest','Latest first'],['sender','Sender A–Z'],['subject','Subject A–Z']].map(([v,l])=>`<option value="${v}" ${TSORT===v?'selected':''}>${l}</option>`).join('')}</select></label>`)+
+`<div id="bulkbar"></div>
+<div class="split"><div class="mlist" id="tlist"></div><div class="mread" id="tread" hidden></div></div>`}
+function triGroups(){const q=F.q.trim().toLowerCase();
+const rows=(TRX??TR).filter(t=>{
+if(F.inbox&&t.inbox!==F.inbox)return false;
+if(F.client==='__vip__'){if(!(t.client_name&&VIPS.has(t.client_name)))return false}else if(F.client==='__all__'){if(!t.client_name)return false}else if(F.client==='__none__'){if(t.client_name)return false}else if(F.client&&t.client_name!==F.client)return false;
+if(F.tag&&!(t.tags||[]).includes(F.tag))return false;
+if(F.att==='1'&&!t.has_attachments)return false;
+if(F.att==='0'&&t.has_attachments)return false;
+if(q&&!((t.subject??'')+' '+(t.from_email??'')+' '+(t.from_name??'')+' '+(t.client_name??'')+' '+(t.inbox??'')).toLowerCase().includes(q))return false;
+return true});
+const gmap=new Map();
+rows.forEach(x=>{const k=x.thread_id||x.message_id;
+if(!gmap.has(k))gmap.set(k,{face:x,n:0});
+const g=gmap.get(k);g.n++;
+if(new Date(x.sent_at)>new Date(g.face.sent_at))g.face=x});
+const grows=[...gmap.values()];
+const cmp={oldest:(a,b)=>+new Date(a.face.sent_at)-+new Date(b.face.sent_at),
+newest:(a,b)=>+new Date(b.face.sent_at)-+new Date(a.face.sent_at),
+sender:(a,b)=>(a.face.from_name||a.face.from_email||'').localeCompare(b.face.from_name||b.face.from_email||''),
+subject:(a,b)=>(a.face.subject||'').localeCompare(b.face.subject||'')}[TSORT];
+if(cmp)grows.sort(cmp);
+return{grows,mails:rows.length}}
+function triageCount(m){
+const key=[(F.q||'').trim().toLowerCase(),F.inbox||'',F.client||'',F.tag||'',F.att||''].join('|');
+if(key===NTRIFK&&NTRIF!=null)return;
+NTRIFK=key;NTRIF=null;
+clearTimeout(_tcDeb);
+_tcDeb=setTimeout(async()=>{
+const{data,error}=await hd.rpc('triage_count',{p_q:(F.q||'').trim(),p_inbox:F.inbox||'',p_client:F.client||'',p_tag:F.tag||'',p_att:F.att||''});
+if(key!==NTRIFK)return;
+NTRIF=error?0:(data??0);
+const ct=m.querySelector('#fct');if(!ct)return;
+const g=triGroups();
+ct.textContent=`Showing ${g.grows.length} of ${NTRIF.toLocaleString()} matching conversation${NTRIF===1?'':'s'} · ${g.mails} mails loaded`;
+},300)}
+function renderTriage(m){const{grows,mails}=triGroups();
+const filt=!!((F.q&&F.q.trim())||F.inbox||F.client||F.tag||F.att);
+const ct=m.querySelector('#fct');if(ct)ct.textContent=filt
+?(MYMODE?`Showing ${grows.length} matching conversation${grows.length===1?'':'s'} · ${mails} mails loaded`:`Showing ${grows.length} of ${NTRIF==null?'…':NTRIF.toLocaleString()} matching conversation${NTRIF===1?'':'s'} · ${mails} mails loaded`)
+:(MYMODE?`Showing ${grows.length} conversation${grows.length===1?'':'s'} still to sort · ${mails} mails loaded`:`Showing ${grows.length} of ${NTRI.toLocaleString()} conversation${NTRI===1?'':'s'} still to sort · ${mails} mails loaded`);
+if(filt&&!MYMODE)triageCount(m);
+const lb=m.querySelector('#tlist'),rd=m.querySelector('#tread');if(!lb)return;
+if(TRO){lb.style.width='400px';lb.style.maxWidth='';if(rd)rd.hidden=false}
+else{lb.style.width='100%';lb.style.maxWidth='none';if(rd){rd.hidden=true;rd.innerHTML=''}}
+const SBT=new Set(SB.filter(s=>!s.to_pool).map(s=>s.thread_id).filter(Boolean));
+const PAT={};(PEND||[]).forEach(p=>{if(!p.thread_id||p.status&&p.status!=='pending')return;
+const _mine=p.requested_by===me.id,_act=p.kind==='block_sender'?'block this sender':'ignore this conversation';
+PAT[p.thread_id]={l:'\u23f3 awaiting approval to '+(p.kind==='block_sender'?'block':'ignore'),
+t:(_mine?'You asked':uName(p.requested_by)+' asked')+' to '+_act+' \u2014 it stays in the Inbox until an approver decides. Nothing has been applied yet.'}});
+const _selKeys=grows.map(g=>g.face.thread_id||'');const _selN=_selKeys.filter(k=>sel.has(k)).length;
+lb.innerHTML=((filt&&!TRO&&grows.length)?`<label class="selall" style="display:flex;gap:9px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--c-border);cursor:pointer;font-size:13px"><input type="checkbox" id="ckall" style="margin:0;flex:0 0 auto"><span>Select all <b>${grows.length}</b> filtered conversation${grows.length===1?'':'s'}${(NTRIF!=null&&NTRIF>grows.length)?` <span class="mu" style="font-weight:400">· of ${NTRIF.toLocaleString()} — load more to include the rest</span>`:''}</span></label>`:'')+(grows.length?grows.map(g=>{const x=g.face;
+const un=!x.seen&&!REV.has(x.message_id);
+const th=x.thread_id||'';
+const vip=x.client_name&&VIPS.has(x.client_name);
+return `<div class="lrow ${TRO?.th===th?'on':''} ${un?'un':''} ${vip?'vip':''}" data-th="${th}" data-g="${x.message_id}" style="display:flex;gap:10px;align-items:flex-start">
+<input type="checkbox" class="ck" ${sel.has(th)?'checked':''} style="margin-top:4px">
+${avat(x.from_name||x.from_email)}<div style="flex:1;min-width:0">
+<div class="l1"><b>${E(x.from_name||x.from_email)}</b><span class="mu">${A(x.sent_at)}</span></div>
+<div class="sj">${E(x.subject)}</div>
+<div class="sn">${E(x.inbox??'')}${x.client_name?' · '+E(x.client_name):''}</div>
+<div style="margin-top:3px">${vip?'<span class="pill vip">⭐ VIP</span>':''}${PAT[x.thread_id]?`<span class="pill w" title="${E(PAT[x.thread_id].t)}">${E(PAT[x.thread_id].l)}</span>`:''}${SBT.has(x.thread_id)?'<span class="pill w">↩ sent back</span>':''}${g.n>1?`<span class="pill i" title="Mail in this conversation still waiting to be sorted">${g.n} to sort</span>`:''}${LBL(x.labels)}${(x.tags||[]).map(tagPill).join('')}${x.has_attachments?'<span class="pill">📎</span>':''}</div>
+</div></div>`}).join('')
+:('<div class="e">Nothing matches'+((F.q&&F.q.trim())?' here.</div><div style="text-align:center;padding:4px 0 10px"><button class="gh" id="tri_arch">🔎 Search the archive for “'+E(F.q.trim())+'”</button></div>':'.</div>')))
++((!TRX&&TR.length>0&&TR.length%400===0)?`<div style="padding:10px;text-align:center;border-top:1px solid var(--c-border)"><button class="gh" id="tmore">Load more messages</button></div>`:'');
+lb.querySelectorAll('.ck').forEach(c=>{const r=c.closest('.lrow');
+c.onclick=e=>e.stopPropagation();
+c.onchange=()=>{c.checked?sel.add(r.dataset.th):sel.delete(r.dataset.th);renderBulk(m)}});
+const _ca=lb.querySelector('#ckall');if(_ca){_ca.checked=_selN>0&&_selN===_selKeys.length;_ca.indeterminate=_selN>0&&_selN<_selKeys.length;_ca.onchange=()=>{if(_ca.checked)_selKeys.forEach(k=>sel.add(k));else _selKeys.forEach(k=>sel.delete(k));renderTriage(m)}}
+lb.querySelectorAll('.lrow').forEach(r=>r.onclick=()=>{
+TRO={th:r.dataset.th,mid:r.dataset.g};REV.add(r.dataset.g);
+renderTriage(m);openTriRead(m)});
+const tm=lb.querySelector('#tmore');if(tm)tm.onclick=async()=>{
+tm.disabled=1;tm.textContent='Loading…';
+const{data}=await hd.from(MYMODE?'v_my_mails':'v_crm_triage').select('*').order('sent_at',{ascending:TSORT!=='newest'}).range(TR.length,TR.length+399);
+TR=TR.concat(data??[]);renderTriage(m)};
+const _tar=lb.querySelector('#tri_arch');if(_tar)_tar.onclick=()=>{ASQ=(F.q||'').trim();AF='old';tab='archive';go()};
+renderBulk(m)}
+function dedupeMsgs(ms){const seen=new Set();return (ms||[]).filter(x=>{const k=x.rfc_message_id;if(!k)return true;if(seen.has(k))return false;seen.add(k);return true})}
+async function openTriRead(m){const rd=m.querySelector('#tread');if(!rd||!TRO)return;
+const _TH=TRO.th,_GEN=++TROGEN;
+rd.hidden=false;rd.innerHTML='<div class="e">Loading…</div>';
+const face=Object.assign({},TR.find(x=>x.message_id===TRO.mid)||(TRO.th?TR.find(x=>x.thread_id===TRO.th):null)||{});
+const{data:_ms}=await hd.from('messages').select('*').eq('thread_id',TRO.th).order('sent_at');const ms=dedupeMsgs(_ms);
+if(_GEN!==TROGEN)return;
+if(!face.subject||!face.from_email){const _fb=[...(ms||[])].reverse().find(x=>x.direction==='inbound')||(ms||[])[(ms||[]).length-1];
+if(_fb){if(!face.subject)face.subject=_fb.subject;
+if(!face.from_email){face.from_name=_fb.from_name;face.from_email=_fb.from_email}
+if(!face.inbox)face.inbox=(_fb.to_emails||[])[0]||'';
+if(!face.message_id)face.message_id=_fb.id;}}
+MHTML={};
+const by=await attachChips(null,(ms??[]).map(x=>x.id));
+hd.rpc('mark_read_many',{p_ids:(_ms??[]).map(x=>x.id)}).then(()=>{try{const _s=new Set((_ms??[]).map(x=>x.id));(TR||[]).forEach(r=>{if(_s.has(r.message_id))r.seen=true})}catch(e){}});
+let TAGBOX='';const TGADDRS=[],tgmap={};
+const ASSIGN=(TAGS||[]).filter(t=>t.behavior==='label'||t.behavior==='client').slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+if(me.crm){const _own=new Set(INB.map(i=>(i.email_address||'').toLowerCase()));
+const _ad=[...new Set((ms??[]).flatMap(x=>[x.from_email,...(x.to_emails||[]),...(x.cc_emails||[])]).map(e=>(e||'').toLowerCase().trim()).filter(e=>e&&e.includes('@')&&!_own.has(e)))];
+if(_ad.length){const{data:_cts}=await hd.from('contacts').select('email,contact_tags(tag_id)').in('email',_ad);
+(_cts||[]).forEach(c=>{tgmap[(c.email||'').toLowerCase()]=new Set((c.contact_tags||[]).map(x=>x.tag_id))});
+_ad.forEach(a=>{if(!tgmap[a])tgmap[a]=new Set()});TGADDRS.push(..._ad);
+TAGBOX=`<div class="card" style="margin-top:12px"><div class="rw" style="justify-content:space-between;align-items:center;margin-bottom:4px"><h2 style="margin:0;font-size:15px">Tags</h2><span class="mu">Applied to each address across its mail · saved to Activity</span></div><div id="tgbox"></div></div>`;}}
+rd.innerHTML=`<div class="rw" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap"><h2 style="flex:1;min-width:0">${E(face.subject||'(no subject)')}</h2>
+<button class="gh" id="tr_x" title="Close this conversation — back to the full-width list">✕ Close</button></div>
+<div class="mu" style="margin:4px 0 10px">${E(face.from_name||face.from_email||'')}${face.from_name&&face.from_email?' &lt;'+E(face.from_email)+'&gt;':''} · to ${E(face.inbox??'')}${face.client_name?' · '+E(face.client_name):''}${face.client_name&&VIPS.has(face.client_name)?' <span class="pill vip">⭐ VIP</span>':''}${(ms??[]).length>1?` · ${(ms??[]).length} mails in this conversation${(()=>{const _u=(ms??[]).filter(x=>x.direction==='inbound'&&x.classification==='unclassified').length;return _u>1?` · ${_u} still to sort`:''})()}`:''}</div>
+<div class="card">
+<div class="rw" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+<span class="mu" style="min-width:78px">Set details</span>
+${comboHtml('tr_wh',ppl.map(p=>({v:p.id,label:p.n})),'','Assign to… (optional)')}
+<select id="tr_pv" title="Urgency">${PSEL}</select>
+<input type="date" id="tr_dl" min="${toDate(new Date())}" max="${dlMaxDate()}" title="Deadline — required for tickets & documents">
+</div>
+<div class="rw" style="gap:8px;flex-wrap:wrap;align-items:center">
+<span class="mu" style="min-width:78px">Then sort it</span>
+<button class="pri tr_tg" data-c="help">🎫 Make a ticket</button>
+<button class="tr_tg" data-c="document">📁 Send to document pool</button>
+<button class="gh" id="tr_claim" title="Create a ticket assigned to you (needs a deadline)">🙋 Claim to me</button><button class="gh" id="tr_reply" title="Assign this to you and reply (stays open)">↩ Reply</button>
+<span aria-hidden="true" style="width:1px;align-self:stretch;background:var(--c-border);margin:0 2px"></span>
+<button class="gh tr_tg" data-c="ignore" title="Move to Archive → Ignored (restorable)">Ignore</button>
+${(me.crm||APPR?.approver_id)?`<button class="gh" id="tr_blk" title="Block this sender — portal level only, Gmail untouched${me.crm?'':' (goes for approval)'}">🚫 Block sender</button>`:''}
+${(me.crm&&RESTRICTON)?`<button class="gh" id="tr_only" title="Only show this sender’s mail to selected people">🔒 Only show to…</button>`:''}
+</div></div>
+${TAGBOX}
+${(ms??[]).slice().reverse().map(msg=>`<div class="msg ${msg.direction==='outbound'?'o':''}">
+<div class="rw">${avat(msg.from_name||msg.from_email)}<div><div><b style="font-size:13px">${E(msg.from_name||msg.from_email)}</b>${msg.from_name&&msg.from_email?` <span class="mu">&lt;${E(msg.from_email)}&gt;</span>`:''} ${LBL(msg.headers?.labels)}</div>
+<div class="mu">To: ${E((msg.to_emails||[]).join(', ')||'—')} · ${E(FDT(msg.sent_at))}</div></div></div>
+${(by[msg.id]?.length)?`<div class="rw" style="margin-top:7px">${by[msg.id].map(chipHtml).join('')}</div>`:''}
+${msg.body_html?(MHTML[msg.id]=msg.body_html,`<div class="mailhost" data-mid="${msg.id}"></div>`):`<div style="margin-top:6px">${P(msg.body_text??msg.snippet)}</div>`}
+</div>`).join('')||'<div class="e">No messages.</div>'}`;
+hydrateMail(rd);wireChips(rd);
+if(me.crm&&TGADDRS.length){
+const _tgc=em=>[...(tgmap[em]||[])].map(tid=>{const t=TAGS.find(g=>g.id===tid);return t?`<span class="chip" style="margin:2px 0">${E(t.name)} <b class="tgrm" data-em="${E(em)}" data-t="${E(t.id)}" style="cursor:pointer" title="Remove tag">✕</b></span>`:''}).join('')||'<span class="mu">no tags yet</span>';
+const _tgr=em=>{const cur=tgmap[em]||new Set();const opts=ASSIGN.filter(t=>!cur.has(t.id));return `<div class="tgrow" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--c-border)"><span class="mu" style="min-width:210px;word-break:break-all;color:var(--c-text)">${E(em)}</span><span class="tgchips" style="display:flex;gap:4px;flex-wrap:wrap;flex:1 1 180px">${_tgc(em)}</span><select class="tgadd" data-em="${E(em)}" style="max-width:170px;font-size:12px;padding:4px 6px"><option value="">＋ Add tag…</option>${opts.map(t=>`<option value="${E(t.id)}">${E(t.name)}</option>`).join('')}</select><button class="tgnew gh" data-em="${E(em)}" style="font-size:12px;padding:4px 9px;white-space:nowrap" title="Create a new label and add it to this address">＋ New</button></div>`};
+const _tgapply=async(em,tid,add)=>{const{error}=await hd.rpc('tag_contact',{p_email:em,p_tag_id:tid,p_add:add});if(error){toast(error.message,true);return false}if(add)(tgmap[em]=tgmap[em]||new Set()).add(tid);else tgmap[em]&&tgmap[em].delete(tid);const t=TAGS.find(g=>g.id===tid);if(t){const k=em.toLowerCase();EMTAG[k]=EMTAG[k]||[];if(add){if(!EMTAG[k].includes(t.name))EMTAG[k].push(t.name)}else EMTAG[k]=EMTAG[k].filter(n=>n!==t.name)}return true};
+const _tgdraw=()=>{const box=rd.querySelector('#tgbox');if(!box)return;box.innerHTML=TGADDRS.map(_tgr).join('');
+box.querySelectorAll('.tgadd').forEach(s=>s.onchange=async()=>{const em=s.dataset.em,tid=s.value;if(!tid)return;s.disabled=1;const ok=await _tgapply(em,tid,true);if(ok){toast('Tag added — saved & logged');_tgdraw()}else s.disabled=0});
+box.querySelectorAll('.tgrm').forEach(b=>b.onclick=async()=>{const ok=await _tgapply(b.dataset.em,b.dataset.t,false);if(ok){const _t=TAGS.find(g=>g.id===b.dataset.t),_blk=_t&&(_t.behavior==='block'||_t.behavior==='block_team');toast(_blk?'Sender unblocked — re-fetching their last 365 days over the next sync runs':'Tag removed — saved & logged');_tgdraw()}});
+box.querySelectorAll('.tgnew').forEach(b=>b.onclick=async()=>{const em=b.dataset.em;const r=await tagCreatePrompt(em);if(!r)return;const{data,error}=await hd.rpc('tag_contact_by_name',{p_email:em,p_name:r.name,p_behavior:r.behavior,p_color:r.color,p_client:r.client_name});if(error){toast(error.message,true);return}const tid=data&&data.tag_id,nm=(data&&data.name)||r.name,beh=(data&&data.behavior)||r.behavior,col=(data&&data.color)||null;if(tid&&!TAGS.find(g=>g.id===tid)){const t={id:tid,name:nm,behavior:beh,color:col,client_name:r.client_name||null};TAGS.push(t);if(beh==='label'||beh==='client'){ASSIGN.push(t);ASSIGN.sort((a,b)=>(a.name||'').localeCompare(b.name||''))}}if(tid)(tgmap[em]=tgmap[em]||new Set()).add(tid);const k=em.toLowerCase();EMTAG[k]=EMTAG[k]||[];if(!EMTAG[k].includes(nm))EMTAG[k].push(nm);toast((data&&data.created?'Tag created & added':'Tag added')+' — saved & logged');if(beh==='ignore'||beh==='block'||beh==='block_team'){go(true)}else{_tgdraw()}});
+makeSearchable(box)};
+_tgdraw();}
+const updateDocBtn=()=>{const db=rd.querySelector('.tr_tg[data-c="document"]');if(!db)return;const has=!!rd.querySelector('#tr_wh').value;db.disabled=has;db.style.opacity=has?'.5':'';db.title=has?'A document in the pool is unassigned — clear the “Assign to” box to send it to the pool, or use “Make a ticket” to give it an owner':'Send to the shared document pool (unassigned)'};
+wireCombo(rd,(id)=>{if(id==='tr_wh')updateDocBtn()});
+const _wht=rd.querySelector('#tr_wh_t');if(_wht)_wht.addEventListener('input',updateDocBtn);updateDocBtn();
+const tx=rd.querySelector('#tr_x');if(tx)tx.onclick=()=>{TRO=null;renderTriage(m)};
+const tcl=rd.querySelector('#tr_claim');if(tcl)tcl.onclick=()=>{const wh=rd.querySelector('#tr_wh'),wt=rd.querySelector('#tr_wh_t');if(wh)wh.value=me.id;if(wt)wt.value=me.name;const hb=rd.querySelector('.tr_tg[data-c="help"]');if(hb)hb.click()};
+const _mkReply=async(_res)=>{const _rb=rd.querySelector('#tr_reply'),_rr=rd.querySelector('#tr_replyres');if(_rb)_rb.disabled=1;if(_rr)_rr.disabled=1;const _pv=+(rd.querySelector('#tr_pv')?.value||3);const{data:_tk,error:_e}=await hd.rpc('classify_thread',{p_thread_id:_TH,p_class:'help',p_assignee:me.id,p_pool_role:null});if(_e||!_tk?.id){toast(_e?_e.message:'Could not start the reply',true);if(_rb)_rb.disabled=0;if(_rr)_rr.disabled=0;return}const _mdl=rd.querySelector('#tr_dl')?.value||'';const{error:_mue}=await hd.from('tickets').update({priority:_pv,due_at:_mdl?dISO(_mdl):dISO(toDate(new Date()))}).eq('id',_tk.id);if(_mue)toast('Ticket created, but the urgency/deadline could not be saved: '+_mue.message,true);PENDRESOLVE=_res?_tk.id:null;sel.delete(_TH);const _h=_tk.thread_id||_TH;TRO=null;open={i:_tk.id,h:_h};tab='mine';go()};
+const _trp=rd.querySelector('#tr_reply');if(_trp)_trp.onclick=()=>_mkReply(false);
+rd.querySelectorAll('.tr_tg').forEach(b=>b.onclick=async()=>{
+if((b.dataset.c==='help'||b.dataset.c==='document')&&!rd.querySelector('#tr_dl').value){
+toast('Set a deadline first — deadlines are compulsory for tickets and documents',true);
+rd.querySelector('#tr_dl').focus();return}
+if(b.dataset.c==='document'&&rd.querySelector('#tr_wh').value){toast('A document in the pool has no owner — clear the “Assign to” box, or use “Make a ticket” to assign it to someone',true);return}
+if(b.dataset.c==='ignore'&&_needAppr()){
+b.disabled=1;
+const{error:pe}=await hd.from('pending_approvals').insert({tenant_id:me.tenant,kind:'ignore_thread',thread_id:_TH,subject:face.subject||null,requested_by:me.id});
+pe?(toast(/duplicate|unique/i.test(pe.message)?'Already waiting for approval.':pe.message,true),b.disabled=0)
+:(toast('Sent to '+_aprs().map(uName).join(', ')+' for approval — the conversation stays here until approved'),TRO=null,go(true));
+return}
+if(b.dataset.c==='ignore'&&!await conf('Ignore this whole conversation?\n\nIt moves to Archive → Ignored. You can restore it — but only until the ignored-mail cleanup window set in Retention passes, after which it is deleted for good and the restore is IRREVERSIBLE.'))return;
+const who=rd.querySelector('#tr_wh').value||null;
+if(b.dataset.c==='help'&&!who){toast('Pick who this ticket is for \u2014 help tickets need an owner. Use \u201cClaim\u201d to take it yourself.',true);return}
+b.disabled=1;
+const pv=+(rd.querySelector('#tr_pv').value||3),dl=rd.querySelector('#tr_dl').value||'';
+const{data:tk,error}=await hd.rpc('classify_thread',{p_thread_id:_TH,p_class:b.dataset.c,p_assignee:who,p_pool_role:null});
+if(error){toast(error.message,true);b.disabled=0;return}
+if(tk?.id&&b.dataset.c!=='ignore'){
+const up={priority:pv};if(dl)up.due_at=dISO(dl);
+if(b.dataset.c==='document')up.is_pool=true;
+await hd.from('tickets').update(up).eq('id',tk.id)}
+const wn=who?uName(who):null;
+toast(b.dataset.c==='ignore'?'Conversation ignored — find it under Archive → Ignored':b.dataset.c==='document'?'Sent to the Document pool':wn?`Ticket created — assigned to ${wn}`:'Ticket created for the whole conversation');
+sel.delete(TRO.th);TRO=null;go(true)});
+const ost=rd.querySelector('#tr_only');if(ost)ost.onclick=async()=>{const _em=(face.from_email||'').toLowerCase();if(!_em){toast('No sender address to restrict',true);return}let cur=[],adm=false,isSet=false;try{const{data:rsx}=await hd.from('restricted_senders').select('viewer_ids,allow_admins').eq('email',_em).maybeSingle();if(rsx){cur=rsx.viewer_ids||[];adm=!!rsx.allow_admins;isSet=true}}catch(e){}const r=await onlyShowToPrompt(_em,cur,adm,isSet);if(!r)return;if(r==='clear'){const{error}=await hd.rpc('clear_only_show_to',{p_email:_em});error?toast(error.message,true):(toast('Restriction removed — this sender is back in the shared Inbox'),go(true));return}const{error}=await hd.rpc('set_only_show_to',{p_email:_em,p_viewers:r.viewers,p_allow_admins:r.allow_admins});error?toast(error.message,true):(toast('Saved — only the chosen people will see this sender’s mail now'),go(true))};
+const bk=rd.querySelector('#tr_blk');if(bk)bk.onclick=async()=>{
+const _em=(face.from_email||'').toLowerCase();
+if(!_em){toast('No sender address to block',true);return}
+const _r=await blockScopePrompt(_em);if(!_r)return;const _team=_r.scope==='team';
+if(!me.crm){
+const{error:pe}=await hd.from('pending_approvals').insert({tenant_id:me.tenant,kind:'block_sender',sender_email:_em,subject:face.subject||null,requested_by:me.id,detail:_r.scope});
+pe?toast(/duplicate|unique/i.test(pe.message)?'Already waiting for approval.':pe.message,true)
+:(toast('Block request sent for approval — nothing changes until it is approved'),TRO=null,go(true));
+return}
+const{error}=await hd.rpc('block_email',{p_tenant:me.tenant,p_email:_em,p_team:_team});
+error?toast(error.message,true):(toast(_team?'Sender blocked for team members — admins still see them, their mail is kept':'Sender blocked for everyone — un-ticketed mail deleted, Gmail untouched'),TRO=null,go(true))}}
+function renderBulk(m){const bb=m.querySelector('#bulkbar');if(!bb)return;
+if(!sel.size){bb.innerHTML='';return}
+bb.innerHTML=`<div class="bulk"><b>${sel.size} selected</b>
+<select id="bwh"><option value="">Assign to… (optional)</option>${ppl.map(p=>`<option value="${p.id}">${E(p.n)}</option>`).join('')}</select>
+<select id="bpv" title="Urgency">${PSEL}</select>
+<input type="date" id="bdl" min="${toDate(new Date())}" max="${dlMaxDate()}" title="Deadline — compulsory for tickets & documents">
+<button class="bk pri" data-c="help">Help tickets</button>
+<button class="bk" data-c="document">Documents → pool</button>
+<button class="bk gh" data-c="ignore">Ignore all</button>
+<button class="gh" id="bclr">Clear</button></div>`;
+bb.querySelector('#bclr').onclick=()=>{sel.clear();m.querySelectorAll('.ck').forEach(c=>c.checked=false);renderBulk(m)};
+const bdoc=()=>{const db=bb.querySelector('.bk[data-c="document"]');if(!db)return;const has=!!bb.querySelector('#bwh').value;db.disabled=has;db.style.opacity=has?'.5':'';db.title=has?'Documents in the pool are unassigned — clear the “Assign to” box to send them to the pool':''};
+const _bw=bb.querySelector('#bwh');if(_bw)_bw.onchange=bdoc;bdoc();
+bb.querySelectorAll('.bk').forEach(b=>b.onclick=async()=>{
+if(b.dataset.c==='ignore'&&_needAppr()){
+b.disabled=1;let sent=0,dup=0;
+for(const th of [...sel]){const f=TR.find(x=>(x.thread_id||x.message_id)===th)||{};
+const{error:pe}=await hd.from('pending_approvals').insert({tenant_id:me.tenant,kind:'ignore_thread',thread_id:th,subject:f.subject||null,requested_by:me.id});
+pe?dup++:sent++}
+toast(`${sent} sent for approval${dup?`, ${dup} already waiting`:''}`);sel.clear();go(true);return}
+const bdl=bb.querySelector('#bdl')?.value||'';
+if((b.dataset.c==='help'||b.dataset.c==='document')&&!bdl){toast('Set a deadline first — deadlines are compulsory for tickets and documents',true);return}
+if(b.dataset.c==='document'&&bb.querySelector('#bwh').value){toast('Documents in the pool have no owner — clear the “Assign to” box, or use “Help tickets” to assign them',true);return}
+if(b.dataset.c==='ignore'&&!await conf(`Ignore all ${sel.size} selected conversations?\n\nThey move to Archive → Ignored and can be restored — but only until the ignored-mail cleanup window passes, after which they are deleted for good (IRREVERSIBLE).`))return;
+const who=bb.querySelector('#bwh').value||null;
+if(b.dataset.c==='help'&&!who){toast('Pick who these tickets are for \u2014 help tickets need an owner',true);return}
+b.disabled=1;
+const bpv=+(bb.querySelector('#bpv')?.value||3);
+let ok=0,fail=0,lastErr='';
+for(const th of [...sel]){const{data:tk,error}=await hd.rpc('classify_thread',
+{p_thread_id:th,p_class:b.dataset.c,p_assignee:who,p_pool_role:null});
+if(error){fail++;lastErr=error.message}
+else{ok++;
+if(tk?.id&&b.dataset.c!=='ignore'){
+const up={};if(bpv!==3)up.priority=bpv;
+if(bdl&&(b.dataset.c==='help'||b.dataset.c==='document'))up.due_at=dISO(bdl);
+if(b.dataset.c==='document')up.is_pool=true;
+if(Object.keys(up).length)await hd.from('tickets').update(up).eq('id',tk.id)}}}
+toast(fail?`${ok} done, ${fail} failed: ${lastErr}`:`${ok} conversation${ok>1?'s':''} tagged`,!!fail);
+sel.clear();go(true)})}
+
+// ---------- attachments ----------
+async function attachChips(box,msgIds){if(!msgIds?.length)return{};
+const{data,error}=await hd.from('attachments')
+.select('id,message_id,filename,mime_type,size_bytes,storage_path,drive_file_id')
+.in('message_id',msgIds);
+if(error||!data?.length)return{};
+const by={};data.forEach(a=>{(by[a.message_id]=by[a.message_id]||[]).push(a)});return by}
+function chipHtml(a){return (a.storage_path||a.drive_file_id)
+?`<span class="chip" data-id="${E(a.id)}" data-fn="${E(a.filename||'file')}">📎 ${E(a.filename)} <span class="mu">${KB(a.size_bytes)}</span></span>`
+:`<span class="chip dis" title="Not stored — either not fetched yet or purged by retention">📎 ${E(a.filename)} <span class="mu">no file</span></span>`}
+function attType(mime,fn){var m=(mime||'').toLowerCase();var e=(fn||'').toLowerCase().split('.').pop();if(m.indexOf('image/')===0||['png','jpg','jpeg','gif','webp','bmp','svg','heic'].indexOf(e)>=0)return'image';if(m==='application/pdf'||e==='pdf')return'pdf';if(['xlsx','xls','csv'].indexOf(e)>=0||/(sheet|ms-excel|excel)/.test(m))return'sheet';if(['doc','docx'].indexOf(e)>=0||/(msword|wordprocessingml|word|document)/.test(m))return'word';if(['ppt','pptx'].indexOf(e)>=0||/(powerpoint|presentation)/.test(m))return'slides';if(m.indexOf('text/')===0||['txt','log','md','json','xml','html','htm','ics','eml'].indexOf(e)>=0)return'text';return'other'}
+var _avLibs={};function _avLoad(src){return _avLibs[src]||(_avLibs[src]=new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=function(){res()};s.onerror=function(){rej(new Error('Could not load viewer'))};document.head.appendChild(s)}))}
+async function _avRender(ty,url,host){
+try{
+if(ty==='sheet'){await _avLoad('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');var buf=await (await fetch(url)).arrayBuffer();var wb=window.XLSX.read(buf,{type:'array'});var h='';wb.SheetNames.forEach(function(nm){h+='<div class="av_shname">'+E(nm)+'</div>'+window.XLSX.utils.sheet_to_html(wb.Sheets[nm])});host.innerHTML='<div class="av_sheet">'+h+'</div>';return}
+if(ty==='word'){await _avLoad('https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js');var buf2=await (await fetch(url)).arrayBuffer();var r=await window.mammoth.convertToHtml({arrayBuffer:buf2});host.innerHTML='<div class="av_doc">'+(r.value||'<p>(empty document)</p>')+'</div>';return}
+host.innerHTML='<iframe src="https://view.officeapps.live.com/op/embed.aspx?src='+encodeURIComponent(url)+'" style="width:100%;height:100%;border:0;background:#fff"></iframe>';
+}catch(err){host.innerHTML='<div class="av_msg"><div style="font-size:34px">\uD83D\uDCCE</div><div>Couldn\u2019t render a preview here.</div><div style="font-size:12.5px">Use <b>Download</b> to open it on your device.</div></div>'}}
+async function openAttachment(id,fnHint){var sgn;
+try{const{data,error}=await hd.rpc('sign_attachment',{p_att:id});if(error)throw error;sgn=data}
+catch(e){toast('Could not open attachment: '+(e.message||e),true);return}
+if(!sgn||sgn.error){toast('Could not open attachment'+(sgn&&sgn.error?': '+sgn.error:''),true);return}
+var url=sgn.url,fn=sgn.filename||fnHint||'file',mime=sgn.mime||'',ty=attType(mime,fn);
+var o=document.createElement('div');o.className='mdl';
+o.innerHTML=`<div class="mdl-box" role="dialog" aria-modal="true" style="width:min(980px,calc(100vw - 20px));height:min(90vh,940px);max-height:90vh;display:flex;flex-direction:column;padding:0">`
++`<div style="padding:10px 14px;border-bottom:1px solid var(--c-border);display:flex;justify-content:space-between;align-items:center;gap:10px">`
++`<div class="mdl-t" style="margin:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${E(fn)}">\uD83D\uDCCE ${E(fn)}</div>`
++`<div style="display:flex;gap:8px;flex:0 0 auto;align-items:center">`
++`<a class="pri" href="${url}&dl=1" download="${E(fn)}" style="text-decoration:none;padding:5px 13px;border-radius:6px;font-size:13px;white-space:nowrap">Download</a>`
++`<button class="gh av_x" style="font-size:17px;line-height:1;padding:3px 10px" title="Close">\u2715</button></div></div>`
++`<div class="av_body" style="flex:1;min-height:0;overflow:auto;background:var(--c-bg2,#f5f5f5)"></div></div>`
++`<style>.av_body .av_msg,.av_body .av_ld{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:9px;color:var(--c-muted);text-align:center;padding:20px}.av_sheet{padding:0 0 14px}.av_shname{font:600 12px system-ui,sans-serif;color:#555;background:#eee;padding:6px 12px;position:sticky;top:0;z-index:1}.av_sheet table{border-collapse:collapse;font:13px system-ui,sans-serif;background:#fff;color:#111}.av_sheet td,.av_sheet th{border:1px solid #d4d4d4;padding:3px 8px;white-space:nowrap}.av_doc{max-width:820px;margin:0 auto;padding:26px 30px;background:#fff;color:#111;font:15px/1.65 Georgia,serif;box-sizing:border-box}.av_doc img{max-width:100%}.av_doc table{border-collapse:collapse}.av_doc td,.av_doc th{border:1px solid #ccc;padding:4px 8px}</style>`;
+document.body.appendChild(o);
+var host=o.querySelector('.av_body');
+if(ty==='image')host.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:10px;box-sizing:border-box"><img src="'+url+'" style="max-width:100%;max-height:100%;object-fit:contain"></div>';
+else if(ty==='pdf'||ty==='text')host.innerHTML='<iframe src="'+url+'" style="width:100%;height:100%;border:0;background:#fff"></iframe>';
+else if(ty==='sheet'||ty==='word'||ty==='slides'){host.innerHTML='<div class="av_ld"><div>Loading preview\u2026</div></div>';_avRender(ty,url,host)}
+else host.innerHTML='<div class="av_msg"><div style="font-size:34px">\uD83D\uDCCE</div><div>Preview isn\u2019t available for this file type.</div><div style="font-size:12.5px">Use <b>Download</b> to open it on your device.</div></div>';
+var done=function(){document.removeEventListener('keydown',k);o.remove()};
+o.querySelector('.av_x').onclick=done;o.addEventListener('mousedown',function(e){if(e.target===o)done()});
+var k=function(e){if(e.key==='Escape'){e.preventDefault();done()}};document.addEventListener('keydown',k)}
+function wireChips(scope){scope.querySelectorAll('.chip[data-id]').forEach(function(c){c.onclick=function(){openAttachment(c.dataset.id,c.dataset.fn)}})}
+
+async function reveal(card){const box=card.querySelector('.body'),prev=card.querySelector('.prev'),
+btn=card.querySelector('.rd');
+if(box.dataset.loaded){const hide=!box.hidden;box.hidden=hide;if(prev)prev.hidden=!hide;
+btn.textContent=hide?'Read full message':'Hide full message';return}
+btn.disabled=1;btn.textContent='Loading…';
+const id=card.dataset.g;
+hd.rpc('mark_read',{p_message_id:id}).then(()=>{});
+const{data,error}=await hd.from('messages').select('body_text,body_html,snippet').eq('id',id).maybeSingle();
+const by=await attachChips(box,[id]);
+btn.disabled=0;
+if(error){box.innerHTML=`<div class="blk">${E(error.message)}</div>`}
+else{const chips=(by[id]?.length)?`<div class="rw" style="margin-bottom:10px">${by[id].map(chipHtml).join('')}</div>`:'';
+if(data?.body_html){MHTML[id]=data.body_html;
+box.innerHTML=chips+`<div class="mailhost" data-mid="${id}"></div>`;hydrateMail(box)}
+else{const txt=(data?.body_text??'').trim()||data?.snippet||'(This message has no text body.)';
+box.innerHTML=chips+P(txt)}
+wireChips(box)}
+box.dataset.loaded=1;box.hidden=false;if(prev)prev.hidden=true;
+btn.textContent='Hide full message'}
